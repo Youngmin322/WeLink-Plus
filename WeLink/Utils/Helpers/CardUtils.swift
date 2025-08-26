@@ -16,10 +16,10 @@ extension Array where Element == CardModel {
     }
 }
 
-// MARK: - Animation Constants
-struct AnimationConstants {
-    static let cardTransition = Animation.easeInOut(duration: 0.3)
-    static let indexChange = Animation.easeInOut(duration: 0.2)
-    static let dragResponse = Animation.spring(response: 0.8, dampingFraction: 0.7)
-    static let deleteButton = Animation.spring(response: 0.5, dampingFraction: 0.8)
+// MARK: - Collection Extensions
+extension Collection {
+    func safeIndex(_ index: Int) -> Int {
+        guard !isEmpty else { return 0 }
+        return Swift.max(0, Swift.min(index, count - 1))
+    }
 }

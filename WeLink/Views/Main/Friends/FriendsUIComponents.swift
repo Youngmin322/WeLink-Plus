@@ -173,10 +173,3 @@ struct BackgroundImageView: View {
             .clipped()
     }
 }
-
-extension Collection {
-    func safeIndex(_ index: Int) -> Int {
-        guard !isEmpty else { return 0 }
-        return Swift.max(0, Swift.min(index, count - 1))
-    }
-}
