@@ -5,13 +5,6 @@
 //  Created by Youngmin Cho on 8/26/25.
 //
 
-//
-//  FriendsViewModel.swift
-//  WeLink
-//
-//  Created by Youngmin Cho on 8/26/25.
-//
-
 import Foundation
 import SwiftData
 import UIKit
@@ -25,9 +18,9 @@ class FriendsViewModel: ObservableObject {
     @Published var keyboardHeight: CGFloat = 0
     @Published var showingShareSheet = false
     
-    private let cardViewModel: CardViewModel
+    var cardViewModel: CardViewModel?
     
-    init(cardViewModel: CardViewModel) {
+    init(cardViewModel: CardViewModel?) {
         self.cardViewModel = cardViewModel
     }
     
@@ -155,17 +148,17 @@ class FriendsViewModel: ObservableObject {
     
     // MARK: - Card Operations
     func findMyCard(from allCards: [CardModel], myIDs: [MyUUID]) -> CardModel? {
-        return cardViewModel.findMyCard(from: allCards, myIDs: myIDs)
+        return cardViewModel?.findMyCard(from: allCards, myIDs: myIDs)
     }
     
     func getFilteredCards(from allCards: [CardModel], myIDs: [MyUUID]) -> [CardModel] {
-        return cardViewModel.filterCards(from: allCards, myIDs: myIDs, searchText: searchText)
+        return cardViewModel?.filterCards(from: allCards, myIDs: myIDs, searchText: searchText) ?? []
     }
     
     // MARK: - View Lifecycle
     func handleViewAppear(allCards: [CardModel]) {
         if allCards.isEmpty {
-            cardViewModel.insertDummyCardsIfNeeded(allCards: allCards)
+            cardViewModel?.insertDummyCardsIfNeeded(allCards: allCards)
         } else {
             preloadImages(for: allCards)
         }

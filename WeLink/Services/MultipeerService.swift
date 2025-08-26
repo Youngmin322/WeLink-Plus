@@ -142,7 +142,66 @@ class MultipeerService: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - Private Methods
+    func invitePeerAndSendCard(_ peerID: MCPeerID, card: CardModel) {
+        // Store card for later sending
+        DispatchQueue.main.async {
+            self.waitingForResponse = peerID
+        }
+        
+        // Send card after connection is established
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            if self.connectedPeers.contains(peerID) {
+                self.sendCard(card, to: peerID)
+            }
+        }
+        
+        invitePeer(peerID)
+    }
+    
+    func cancelInvitation() {
+        guard let waitingPeer = waitingForResponse else { return }
+        
+        print("초대 취소: \(waitingPeer.displayName)")
+        
+        waitingForResponse = nil
+        
+        stopHosting()
+        stopBrowsing()
+        session.disconnect()
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.setupSession()
+            self.setupAdvertiser()
+            self.setupBrowser()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.startHosting()
+                self.startBrowsing()
+            }
+        }
+    }
+    
+    func respondToInvitation(accept: Bool, myCard: CardModel? = nil) {
+        guard let invitation = incomingInvitation else {
+            print("처리할 초대가 없음")
+            return
+        }
+        
+        print("초대 응답: \(accept ? "수락" : "거절")")
+        invitation.handler(accept)
+        
+        if accept, let card = myCard {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                if let peer = self.connectedPeers.first {
+                    self.sendCard(card, to: peer)
+                }
+            }
+        }
+        
+        DispatchQueue.main.async {
+            self.incomingInvitation = nil
+        }
+    }
     private func saveReceivedCard(_ card: CardModel, from senderID: String) {
         guard let context = modelContext else {
             print("ModelContext가 설정되지 않음")

@@ -1,3 +1,10 @@
+//
+//  FriendsTabView.swift
+//  WeLink
+//
+//  Created by 조영민 on 8/26/25.
+//
+
 import SwiftUI
 import SwiftData
 
@@ -5,44 +12,40 @@ struct FriendsTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allCards: [CardModel]
     @Query private var myID: [MyUUID]
-    @State private var currentIndex = 0
-    @State private var showingShareSheet = false
-    @State private var preloadedImages: [Int: UIImage] = [:]
-    @State private var searchText = ""
-    @State private var isSearching = false
-    @State private var keyboardHeight: CGFloat = 0
+    
+    @StateObject private var viewModel = FriendsViewModel(cardViewModel: nil)
     @FocusState private var isTextFieldFocused: Bool
     
-    private func printAllCards(cards: [CardModel]){
-        for card in cards{
-            print(card.name)
-        }
-    }
-    
     private var cards: [CardModel] {
-        guard let myUUID = myID.last?.id else {
-            if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return allCards
-            } else {
-                return allCards.filter { card in
-                    card.name.localizedCaseInsensitiveContains(searchText.trimmingCharacters(in: .whitespacesAndNewlines))
+        // Fallback to original logic if viewModel is not ready
+        if let cardViewModel = viewModel.cardViewModel {
+            return cardViewModel.filterCards(from: allCards, myIDs: myID, searchText: viewModel.searchText)
+        } else {
+            // Original filtering logic
+            guard let myUUID = myID.last?.id else {
+                if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    return allCards
+                } else {
+                    return allCards.filter { card in
+                        card.name.localizedCaseInsensitiveContains(viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines))
+                    }
                 }
             }
-        }
-        
-        let filteredCards = allCards.filter { $0.id != myUUID }
-        
-        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return filteredCards
-        } else {
-            return filteredCards.filter { card in
-                card.name.localizedCaseInsensitiveContains(searchText.trimmingCharacters(in: .whitespacesAndNewlines))
+            
+            let filteredCards = allCards.filter { $0.id != myUUID }
+            
+            if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return filteredCards
+            } else {
+                return filteredCards.filter { card in
+                    card.name.localizedCaseInsensitiveContains(viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines))
+                }
             }
         }
     }
     
     private var safeCurrentIndex: Int {
-        cards.safeIndex(currentIndex)
+        cards.safeIndex(viewModel.currentIndex)
     }
     
     var body: some View {
@@ -52,7 +55,7 @@ struct FriendsTabView: View {
                     BackgroundImageView(
                         cards: cards,
                         currentIndex: safeCurrentIndex,
-                        preloadedImages: preloadedImages
+                        preloadedImages: viewModel.preloadedImages
                     )
                     .ignoresSafeArea(.all)
                     .frame(
@@ -63,10 +66,22 @@ struct FriendsTabView: View {
                     
                     VStack(spacing: 0) {
                         FriendsHeaderView(
-                            searchText: $searchText,
-                            isSearching: $isSearching,
+                            searchText: $viewModel.searchText,
+                            isSearching: $viewModel.isSearching,
                             isTextFieldFocused: $isTextFieldFocused,
-                            onToggleSearch: toggleSearchMode
+                            onToggleSearch: {
+                                withAnimation(AnimationConstants.cardTransition) {
+                                    viewModel.toggleSearchMode()
+                                }
+                                
+                                if viewModel.isSearching {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                        isTextFieldFocused = true
+                                    }
+                                } else {
+                                    isTextFieldFocused = false
+                                }
+                            }
                         )
                         .padding(.top, geometry.safeAreaInsets.top - 40)
                         .padding(.horizontal, 24)
@@ -76,11 +91,11 @@ struct FriendsTabView: View {
                             .frame(height: 0)
                         
                         if cards.isEmpty {
-                            FriendsEmptyStateView(searchText: searchText)
+                            FriendsEmptyStateView(searchText: viewModel.searchText)
                                 .frame(maxHeight: .infinity)
                         } else {
                             ScrollView {
-                                CardScrollView(cards: cards, currentIndex: $currentIndex)
+                                CardScrollView(cards: cards, currentIndex: $viewModel.currentIndex)
                                     .padding(.top, 20)
                             }
                             .scrollDisabled(true)
@@ -94,44 +109,74 @@ struct FriendsTabView: View {
                 }
             }
             .navigationBarHidden(true)
-            .onAppear{
-                printAllCards(cards: allCards)
+            .onAppear {
+                handleViewAppear()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
-            handleKeyboardShow(notification)
+            if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                viewModel.handleKeyboardShow(keyboardFrame.height)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            keyboardHeight = 0
-        }
-        .onAppear {
-            handleViewAppear()
+            viewModel.handleKeyboardHide()
         }
         .onChange(of: allCards) { oldValue, newValue in
-            handleAllCardsChange(oldCards: oldValue, newCards: newValue)
+            if newValue.count < oldValue.count && viewModel.currentIndex >= cards.count && cards.count > 0 {
+                DispatchQueue.main.async {
+                    viewModel.currentIndex = max(0, cards.count - 1)
+                }
+            }
+            
+            if !cards.isEmpty {
+                preloadImages(for: cards) // cards 배열 사용
+            }
         }
         .onChange(of: allCards.count) { oldCount, newCount in
-            handleCardsCountChange(oldCount: oldCount, newCount: newCount)
+            if newCount > oldCount {
+                print("새 카드가 추가되었습니다. 총 \(newCount)개")
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    if !self.cards.isEmpty {
+                        self.viewModel.currentIndex = min(self.viewModel.currentIndex, self.cards.count - 1)
+                        self.preloadImages(for: self.cards) // cards 배열 사용
+                    }
+                }
+            }
         }
         .onChange(of: cards) { oldValue, newValue in
-            handleFilteredCardsChange(oldCards: oldValue, newCards: newValue)
+            DispatchQueue.main.async {
+                if newValue.isEmpty {
+                    self.viewModel.currentIndex = 0
+                } else {
+                    if newValue.count < oldValue.count {
+                        self.viewModel.currentIndex = min(self.viewModel.currentIndex, max(0, newValue.count - 1))
+                    } else {
+                        self.viewModel.currentIndex = min(self.viewModel.currentIndex, newValue.count - 1)
+                    }
+                }
+                self.preloadImages(for: newValue) // 필터링된 cards 배열 사용
+            }
         }
-        .onChange(of: searchText) { _, _ in
-            resetCurrentIndex()
+        .onChange(of: viewModel.searchText) { _, _ in
+            viewModel.resetCurrentIndex()
         }
-        .sheet(isPresented: $showingShareSheet) {
+        .sheet(isPresented: $viewModel.showingShareSheet) {
             shareSheetView
         }
     }
+}
+
+// MARK: - View Components
+extension FriendsTabView {
     
-    // MARK: - Floating Button
     private func floatingButton(geometry: GeometryProxy) -> some View {
         VStack {
             Spacer()
             HStack {
                 Spacer()
                 Button(action: {
-                    showingShareSheet = true
+                    viewModel.toggleShareSheet()
                 }) {
                     ZStack {
                         Circle()
@@ -150,15 +195,14 @@ struct FriendsTabView: View {
                     .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
                 .padding(.trailing, 24)
-                .padding(.bottom, keyboardHeight > 0 ? 140 : geometry.safeAreaInsets.bottom + 133)
+                .padding(.bottom, viewModel.keyboardHeight > 0 ? 140 : geometry.safeAreaInsets.bottom + 133)
             }
         }
     }
     
-    // MARK: - Share Sheet View
     private var shareSheetView: some View {
         NavigationView {
-            if let myCard = findMyCard() {
+            if let myCard = viewModel.findMyCard(from: allCards, myIDs: myID) {
                 ShareCardSheetView(myCard: myCard)
                     .navigationBarTitleDisplayMode(.inline)
             } else {
@@ -182,124 +226,57 @@ struct FriendsTabView: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
-
-    private func findMyCard() -> CardModel? {
-        guard let myUUID = myID.last?.id else { return nil }
-        return allCards.first { $0.id == myUUID }
-    }
 }
 
-// MARK: - Private Methods Extension
+// MARK: - Private Methods
 extension FriendsTabView {
-    private func toggleSearchMode() {
-        if isSearching {
-            exitSearchMode()
-        } else {
-            enterSearchMode()
+    
+    private func setupViewModel() {
+        // Initialize cardViewModel when view appears
+        if viewModel.cardViewModel == nil {
+            viewModel.cardViewModel = CardViewModel(context: modelContext)
         }
     }
     
-    private func enterSearchMode() {
-        withAnimation(AnimationConstants.cardTransition) {
-            isSearching = true
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            isTextFieldFocused = true
-        }
-    }
-    
-    private func exitSearchMode() {
-        isTextFieldFocused = false
-        searchText = ""
-        resetCurrentIndex()
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(AnimationConstants.cardTransition) {
-                isSearching = false
-            }
-        }
-    }
-    
-    private func resetCurrentIndex() {
-        DispatchQueue.main.async {
-            currentIndex = 0
-        }
-    }
-    
-    private func handleKeyboardShow(_ notification: Notification) {
-        if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-            keyboardHeight = keyboardFrame.height
+    private func printAllCards(cards: [CardModel]) {
+        for card in cards {
+            print(card.name)
         }
     }
     
     private func handleViewAppear() {
-        if cards.isEmpty {
-            CardDataProvider.insertDummyCards(into: modelContext)
-        } else {
-            preloadImages()
-        }
-    }
-    
-    private func handleAllCardsChange(oldCards: [CardModel], newCards: [CardModel]) {
-        if newCards.count < oldCards.count && currentIndex >= newCards.count && newCards.count > 0 {
-            DispatchQueue.main.async {
-                currentIndex = max(0, newCards.count - 1)
-            }
-        }
+        setupViewModel()
+        printAllCards(cards: allCards)
         
-        if !newCards.isEmpty {
-            preloadImages()
+        // Use original dummy card insertion logic
+        if allCards.isEmpty {
+            CardDataService.insertDummyCards(into: modelContext)
+        } else {
+            // 현재 화면에 보이는 cards 배열로 preload
+            preloadImages(for: cards)
         }
     }
     
-    private func handleCardsCountChange(oldCount: Int, newCount: Int) {
-        if newCount > oldCount {
-            print("새 카드가 추가되었습니다. 총 \(newCount)개")
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                if !cards.isEmpty {
-                    currentIndex = min(currentIndex, cards.count - 1)
-                    preloadImages()
-                }
-            }
-        }
-    }
-    
-    private func handleFilteredCardsChange(oldCards: [CardModel], newCards: [CardModel]) {
-        DispatchQueue.main.async {
-            if newCards.isEmpty {
-                currentIndex = 0
-            } else {
-                if newCards.count < oldCards.count {
-                    currentIndex = min(currentIndex, max(0, newCards.count - 1))
-                } else {
-                    currentIndex = min(currentIndex, newCards.count - 1)
-                }
-            }
-            preloadImages()
-        }
-    }
-    
-    private func preloadImages() {
-        let currentCards = cards
+    // MARK: - 수정된 Image Preloading
+    private func preloadImages(for displayCards: [CardModel]) {
         DispatchQueue.global(qos: .userInitiated).async {
             var newPreloadedImages: [Int: UIImage] = [:]
-            for (index, card) in currentCards.enumerated() {
+            // 현재 화면에 표시되는 cards 배열의 인덱스 사용
+            for (index, card) in displayCards.enumerated() {
                 if !card.imageData.isEmpty, let uiImage = UIImage(data: card.imageData) {
                     let resizedImage = self.resizeImageForBackground(uiImage)
                     newPreloadedImages[index] = resizedImage
                 }
             }
             DispatchQueue.main.async {
-                self.preloadedImages = newPreloadedImages
+                self.viewModel.preloadedImages = newPreloadedImages
             }
         }
     }
     
     private func resizeImageForBackground(_ image: UIImage) -> UIImage {
         let screenSize = UIScreen.main.bounds.size
-        let maxDimension = max(screenSize.width, screenSize.height) * 1.5
+        let maxDimension = max(screenSize.width, screenSize.height) * 0.6
         
         let imageSize = image.size
         let scale = maxDimension / max(imageSize.width, imageSize.height)

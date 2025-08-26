@@ -10,7 +10,7 @@ import MultipeerConnectivity
 import SwiftData
 
 struct ShareCardSheetView: View {
-    @StateObject var mpc = MultipeerManager()
+    @StateObject var mpc = MultipeerService()
     @State private var dotCount: Int = 0
     @State private var dotTimer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
     @State private var pendingCardSends: Set<String> = []
@@ -145,11 +145,6 @@ struct ShareCardSheetView: View {
     private func handleConnectedPeersChange(oldValue: [MCPeerID], newValue: [MCPeerID]) {
         for peer in newValue {
             pendingCardSends.remove(peer.displayName)
-            if mpc.waitingForResponse?.displayName == peer.displayName {
-                DispatchQueue.main.async {
-                    self.mpc.waitingForResponse = nil
-                }
-            }
         }
     }
     
@@ -222,11 +217,11 @@ struct ShareCardSheetView: View {
         mpc.stopHosting()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            let cardToUse = actualMyCard ?? createDefaultCard()
-            mpc.setupPeerWithUserName(cardToUse.name)
+            let cardToUse = self.actualMyCard ?? self.createDefaultCard()
+            self.mpc.setupPeerWithUserName(cardToUse.name)
             
-            mpc.startHosting()
-            mpc.startBrowsing()
+            self.mpc.startHosting()
+            self.mpc.startBrowsing()
         }
     }
     
@@ -436,7 +431,7 @@ struct ShareCardSheetView: View {
         mpc.disconnect()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            setupMultipeerManager()
+            self.setupMultipeerManager()
         }
     }
 }
