@@ -458,24 +458,3 @@ class MultipeerManager: NSObject, ObservableObject, MCSessionDelegate, MCNearbyS
     }
 }
 
-// MARK: - 카드 전송 데이터 구조체
-struct CardTransferData: Codable {
-    let card: CardModel
-    let senderID: String
-    
-    init(card: CardModel, senderID: String) {
-        self.card = card
-        self.senderID = senderID
-    }
-}
-
-extension MCSessionState {
-    var description: String {
-        switch self {
-        case .notConnected: return "notConnected"
-        case .connecting: return "connecting"
-        case .connected: return "connected"
-        @unknown default: return "unknown"
-        }
-    }
-}
