@@ -482,12 +482,3 @@ struct MenuTabView: View {
         }
     }
 }
-
-// MARK: - CardModel extension
-extension CardModel {
-    var birthDateAsDate: Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: birthDate)
-    }
-}

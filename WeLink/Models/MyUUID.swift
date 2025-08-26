@@ -6,3 +6,13 @@
 //
 
 import Foundation
+import SwiftData
+
+@Model
+class MyUUID {
+    var id: UUID
+    
+    init(id: UUID) {
+        self.id = id
+    }
+}

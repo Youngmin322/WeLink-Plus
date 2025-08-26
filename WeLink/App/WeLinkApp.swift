@@ -2,7 +2,7 @@
 //  WeLinkApp.swift
 //  WeLink
 //
-//  Created by 조영민 on 8/4/25.
+//  Created by Youngmin Cho on 8/4/25.
 //
 
 import SwiftUI

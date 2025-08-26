@@ -2,20 +2,11 @@
 //  Item.swift
 //  Wishing
 //
-//  Created by 조영민 on 8/4/25.
+//  Created by Youngmin Cho on 8/4/25.
 //
 
 import Foundation
 import SwiftData
-
-@Model
-class MyUUID{
-    var id: UUID
-    
-    init(id: UUID){
-        self.id = id
-    }
-}
 
 @Model
 class CardModel: Codable {
@@ -34,7 +25,7 @@ class CardModel: Codable {
         case id, name, age, cardDescription, birthDate, mbti, tag, dDay, imageData, topics
     }
     
-    init(id: UUID , name: String, age: Int, description: String, birthDate: String, mbti: String, tag: String, dDay: Int, imageData: Data) {
+    init(id: UUID, name: String, age: Int, description: String, birthDate: String, mbti: String, tag: String, dDay: Int, imageData: Data) {
         self.id = id
         self.name = name
         self.age = age
@@ -72,5 +63,14 @@ class CardModel: Codable {
         try container.encode(dDay, forKey: .dDay)
         try container.encode(imageData, forKey: .imageData)
         try container.encode(topics, forKey: .topics)
+    }
+}
+
+// MARK: - CardModel Extensions
+extension CardModel {
+    var birthDateAsDate: Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: birthDate)
     }
 }
