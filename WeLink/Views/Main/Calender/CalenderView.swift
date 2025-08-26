@@ -1,11 +1,6 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - MemoStore (ObservableObject로 상태 관리)
-class MemoStore: ObservableObject {
-    @Published var memos: [Date: [(text: String, writer: String)]] = [:]
-}
-
 // MARK: - CustomCalendarView
 struct CustomCalendarView: View {
     @Binding var selectedDate: Date?
