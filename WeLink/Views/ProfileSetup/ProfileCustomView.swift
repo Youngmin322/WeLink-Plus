@@ -311,7 +311,7 @@ var body: some View {
                         )
                         .foregroundColor(.white)
                         .focused($focusedField, equals: .birthDate)
-                        .onChange(of: birthDate) { newValue in
+                        .onChange(of: birthDate) { oldValue, newValue in
                             let formatter = DateFormatter()
                             formatter.dateFormat = "yyyy-MM-dd"
                             formatter.locale = Locale(identifier: "en_US_POSIX")

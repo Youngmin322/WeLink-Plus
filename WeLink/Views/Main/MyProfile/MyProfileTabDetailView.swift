@@ -343,7 +343,7 @@ struct subTopicWindow: View{
     }
     var body: some View {
         ZStack{
-            if topic.children.values.filter { $0.isSelected }.count > 0 {
+            if topic.children.values.filter({ $0.isSelected }).count > 0 {
                 VStack(spacing:22){
                     HStack(spacing: 1){
                         Text("#")

@@ -70,8 +70,8 @@ struct PhotoPickerWithPermission: View {
             } message: {
                 Text("사진을 선택하려면 사진 라이브러리 접근 권한이 필요합니다. 설정에서 권한을 허용해주세요.")
             }
-            .onChange(of: showPicker) { newValue in
-                if newValue {
+            .onChange(of: showPicker) {
+                if showPicker {
                     checkPhotoLibraryPermission()
                 }
             }

@@ -30,7 +30,7 @@ struct MyProfileTabView: View {
                         .ignoresSafeArea()
                     
                 }
-
+                
                 VStack {
                     // Header (static)
                     HStack(spacing: 160) {
@@ -38,7 +38,7 @@ struct MyProfileTabView: View {
                             .foregroundColor(.white)
                             .font(.system(size: 35))
                             .bold()
-
+                        
                         Button(action: {
                             withAnimation(.easeInOut) {
                                 showMenu.toggle()
@@ -53,7 +53,7 @@ struct MyProfileTabView: View {
                         }
                     }
                     .padding(.bottom, 30)
-
+                    
                     // Flipping card ZStack
                     if let myProfile = myProfile {
                         FlippingCardView(
@@ -63,7 +63,7 @@ struct MyProfileTabView: View {
                     }
                 }
                 .padding(.bottom, 100)
-
+                
                 MenuOverlay(showMenu: $showMenu, myProfile: $myProfile)
             }
         }
@@ -81,66 +81,75 @@ private struct MenuOverlay: View {
     @Binding var myProfile: CardModel?
     @State private var goToProfileCustomView = false
     @State private var goToCategoryView = false
-
+    
     var body: some View {
-        ZStack {
-            if showMenu {
-                Color.black.opacity(0.001)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation {
+        NavigationStack {
+            ZStack {
+                if showMenu {
+                    Color.black.opacity(0.001)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation {
+                                showMenu = false
+                            }
+                        }
+                    
+                    VStack(alignment: .leading, spacing: 0) {
+                        Button {
+                            goToProfileCustomView = true
                             showMenu = false
+                        } label: {
+                            Text("프로필 수정")
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.darkGray))
+                                .foregroundColor(.white)
+                        }
+                        
+                        Divider().background(Color.white)
+                        
+                        Button {
+                            goToCategoryView = true
+                            showMenu = false
+                        } label: {
+                            Text("취향 카테고리 수정")
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.darkGray))
+                                .foregroundColor(.white)
                         }
                     }
-                
-                VStack(alignment: .leading, spacing: 0) {
-                    Button {
-                        goToProfileCustomView = true
-                        showMenu = false
-                    } label: {
-                        Text("프로필 수정")
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(.darkGray))
-                            .foregroundColor(.white)
-                    }
-                    
-                    Divider().background(Color.white)
-                    
-                    Button {
-                        goToCategoryView = true
-                        showMenu = false
-                    } label: {
-                        Text("취향 카테고리 수정")
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(.darkGray))
-                            .foregroundColor(.white)
-                    }
+                    .background(Color(.darkGray))
+                    .cornerRadius(12)
+                    .frame(width: 160)
+                    .shadow(radius: 5)
+                    .offset(x: 60, y: -270)
                 }
-                .background(Color(.darkGray))
-                .cornerRadius(12)
-                .frame(width: 160)
-                .shadow(radius: 5)
-                .offset(x: 60, y: -270)
-            }
-                // NavigationLink는 항상 뷰 트리에 존재하도록
-                NavigationLink("", destination: ProfileCustomView(progress: 1.0 / 4.0, cardModel: myProfile, isEdit: true)
-                    .onDisappear { goToProfileCustomView = false }
-                    .navigationBarHidden(true)
-                               , isActive: $goToProfileCustomView)
-                .hidden()
                 
-                if let profile = myProfile {
-                    NavigationLink("", destination: CategoryView(progress: 2.0 / 4.0, cardModel: profile, isEdit: true, keepGoing: $goToCategoryView)
+                MenuOverlay(showMenu: $showMenu, myProfile: $myProfile)
+                    .navigationDestination(isPresented: $goToProfileCustomView) {
+                        ProfileCustomView(
+                            progress: 1.0 / 4.0,
+                            cardModel: myProfile,
+                            isEdit: true
+                        )
+                        .onDisappear { goToProfileCustomView = false }
                         .navigationBarHidden(true)
-                                   , isActive: $goToCategoryView)
-                    .hidden()
+                    }
+                    .navigationDestination(isPresented: $goToCategoryView) {
+                        if let profile = myProfile {
+                            CategoryView(progress: 2.0 / 4.0,
+                                         cardModel: profile,
+                                         isEdit: true,
+                                         keepGoing: $goToCategoryView
+                            )
+                            .navigationBarHidden(true)
+                        }
+                    }
             }
         }
     }
 }
-
 
 func findMyProfile(cards: [CardModel], id: UUID)->CardModel{
     var idx:Int = 0
@@ -158,7 +167,7 @@ func findMyProfile(cards: [CardModel], id: UUID)->CardModel{
 private struct FlippingCardView: View {
     @Binding var isFlipped: Bool
     let myProfile: CardModel
-
+    
     var body: some View {
         ZStack {
             FrontCardView(myProfile: myProfile)
@@ -179,7 +188,7 @@ private struct FlippingCardView: View {
 // MARK: - FrontCardView
 private struct FrontCardView: View {
     let myProfile: CardModel
-
+    
     var body: some View {
         ZStack {
             Image(uiImage: UIImage(data: myProfile.imageData)!)
@@ -201,7 +210,7 @@ private struct FrontCardView: View {
                     .blur(radius: 20)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                 )
-
+            
             VStack {
                 Text("D-\(myProfile.dDay)")
                     .foregroundColor(.white)
@@ -210,33 +219,33 @@ private struct FrontCardView: View {
                     .bold()
                     .padding([.top, .trailing], 16)
                     .offset(x: 90, y: -160)
-
+                
                 HStack {
                     Text(myProfile.name)
                         .foregroundColor(.white)
                         .font(.custom("Pretendard-Bold", size: 42))
                         .offset(x: -58, y: 119)
-
+                    
                     Text("(\(myProfile.age))")
                         .foregroundColor(.white)
                         .font(.custom("Pretendard-SemiBold", size: 14))
                         .offset(x: -56, y: 127)
                 }
-
+                
                 Text(myProfile.cardDescription)
                     .font(.custom("Pretendard-Medium", size: 12.5))
                     .lineSpacing(3)
                     .foregroundColor(.white)
                     .opacity(0.7)
                     .offset(x: -65, y: 140)
-
+                
                 HStack(spacing: 19) {
                     ForEach([formattedBirthDate(from: myProfile.birthDate), (myProfile.mbti), myProfile.tag], id: \.self) { label in
                         ZStack {
                             RoundedRectangle(cornerRadius: 45)
-//                                .foregroundColor(Color(hex: 0xFFFFFF).opacity(0.25))
-//                                .frame(width: 76, height: 29)
-//                            
+                            //                                .foregroundColor(Color(hex: 0xFFFFFF).opacity(0.25))
+                            //                                .frame(width: 76, height: 29)
+                            //
                                 .foregroundColor(Color.white)
                                 .frame(width: 76, height: 29)
                                 .opacity(0.25)
@@ -249,7 +258,7 @@ private struct FrontCardView: View {
                     }
                 }
                 .offset(x: 0, y: 160)
-
+                
                 Text("카드를 클릭하면 뒷면이 보입니다.")
                     .font(.system(size: 16))
                     .foregroundColor(Color(hex: 0x6F6F6F))
@@ -262,7 +271,7 @@ private struct FrontCardView: View {
 // MARK: - BackCardView
 private struct BackCardView: View {
     let myProfile: CardModel
-
+    
     var body: some View {
         VStack {
             ZStack {
@@ -275,7 +284,7 @@ private struct BackCardView: View {
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(Color.white, lineWidth: 1.5)
                     )
-
+                
                 VStack {
                     ZStack {
                         RoundedRectangle(cornerRadius: 10)
@@ -286,14 +295,14 @@ private struct BackCardView: View {
                                 RoundedRectangle(cornerRadius: 10)
                                     .stroke(Color.white, lineWidth: 1)
                             )
-
+                        
                         VStack(spacing: 10) {
                             ZStack{
                                 Rectangle()
                                     .foregroundColor(Color("MainColor"))
                                     .frame(width: 54, height: 20)
                                     .offset(x: -22)
-
+                                
                                 Text("김민정 님의 음악")
                                     .font(.custom("Pretendard-Medium", size: 14))
                                     .foregroundColor(.black)
@@ -301,13 +310,13 @@ private struct BackCardView: View {
                             Image("MyProfileTabView_Music")
                                 .resizable()
                                 .frame(width: 100, height: 100)
-
+                            
                             ZStack {
                                 RoundedRectangle(cornerRadius: 7)
                                     .foregroundColor(.gray)
                                     .opacity(0.1)
                                     .frame(width: 121, height: 25)
-
+                                
                                 Text("백예린 - Antifreeze")
                                     .font(.custom("Pretendard", size: 12))
                                     .foregroundColor(.black)
@@ -316,7 +325,7 @@ private struct BackCardView: View {
                     }
                 }
                 .offset(x: -70, y: -130)
-
+                
                 VStack {
                     ZStack {
                         RoundedRectangle(cornerRadius: 10)
@@ -327,29 +336,29 @@ private struct BackCardView: View {
                                 RoundedRectangle(cornerRadius: 10)
                                     .stroke(Color.white, lineWidth: 1)
                             )
-
+                        
                         VStack {
                             Text("요즘 빠진 취미")
                                 .font(.custom("Pretendard-Medium", size: 14))
                                 .foregroundColor(.black)
-
+                            
                             ZStack {
                                 RoundedRectangle(cornerRadius: 7)
                                     .foregroundColor(.gray)
                                     .opacity(0.1)
                                     .frame(width: 121, height: 25)
-
+                                
                                 Text("# 다이어리 쓰기")
                                     .font(.custom("Pretendard", size: 11))
                                     .foregroundColor(.black)
                             }
-
+                            
                             ZStack {
                                 RoundedRectangle(cornerRadius: 7)
                                     .foregroundColor(.gray)
                                     .opacity(0.1)
                                     .frame(width: 121, height: 25)
-
+                                
                                 Text("# 키링, 인형 모의기")
                                     .font(.custom("Pretendard", size: 11))
                                     .foregroundColor(.black)
@@ -358,7 +367,7 @@ private struct BackCardView: View {
                     }
                 }
                 .offset(x: 70, y: -174)
-
+                
                 VStack {
                     ZStack {
                         RoundedRectangle(cornerRadius: 10)
@@ -369,18 +378,18 @@ private struct BackCardView: View {
                                 RoundedRectangle(cornerRadius: 10)
                                     .stroke(Color.white, lineWidth: 1)
                             )
-
+                        
                         VStack {
                             Text("자주 가는 장소")
                                 .font(.custom("Pretendard-Medium", size: 14))
                                 .foregroundColor(.black)
-
+                            
                             ZStack {
                                 RoundedRectangle(cornerRadius: 5)
                                     .foregroundColor(.gray)
                                     .opacity(0.1)
                                     .frame(width: 121, height: 25)
-
+                                
                                 Text("포스텍 C5 6층 마루랩")
                                     .font(.custom("Pretendard", size: 11))
                                     .foregroundColor(.black)
@@ -389,18 +398,18 @@ private struct BackCardView: View {
                     }
                 }
                 .offset(x: 70, y: -73)
-
+                
                 Image("MyProfileTabView_balance")
                     .resizable()
                     .frame(width: 274, height: 182)
                     .offset(y: 70)
-
+                
                 NavigationLink(destination: MyProfileTabDetailView(myProfile: myProfile)) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 35)
                             .fill(Color("MainColor"))
                             .frame(width: 221, height: 47)
-
+                        
                         Text("취향 더 보러가기")
                             .font(.custom("Pretendard-SemiBold", size: 14))
                             .foregroundColor(.black)
@@ -408,7 +417,7 @@ private struct BackCardView: View {
                 }
                 .offset(y: 200)
             }
-
+            
             Text("카드를 클릭하면 앞면이 보입니다.")
                 .font(.custom("Pretendard", size: 16))
                 .foregroundColor(Color(hex: 0x6F6F6F))

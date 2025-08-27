@@ -26,16 +26,13 @@ struct OnboardingView: View {
                 } else {
                     OnboardingStepView(viewModel: viewModel)
                 }
-                
-                // Navigation to next view
-                NavigationLink("", isActive: $viewModel.isTapped) {
-                    if viewModel.isFirstStep {
-                        OnboardingStepView(viewModel: viewModel)
-                    } else {
-                        FinalView()
-                    }
+            }
+            .navigationDestination(isPresented: $viewModel.isTapped) {
+                if viewModel.isFirstStep {
+                    OnboardingStepView(viewModel: viewModel)
+                } else {
+                    FinalView()
                 }
-                .hidden()
             }
         }
     }
@@ -53,14 +50,14 @@ struct InitialView: View {
                     .frame(width: 180, height: 180)
                     .cornerRadius(30)
                     .shadow(color: Color.white.opacity(0.45), radius: 10, x: 0, y: 4)
-
+                
                 Image("AppiconImage")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 180, height: 180)
                     .clipShape(RoundedRectangle(cornerRadius: 30))
             }
-
+            
             Text("WeLink")
                 .font(.system(size: 55, weight: .bold))
                 .foregroundStyle(.white)
@@ -175,7 +172,7 @@ struct FinalView: View {
                         .frame(width: 180, height: 180)
                         .cornerRadius(30)
                         .shadow(color: Color.white.opacity(0.45), radius: 10, x: 0, y: 4)
-
+                    
                     Image("AppiconImage")
                         .resizable()
                         .aspectRatio(contentMode: .fit)

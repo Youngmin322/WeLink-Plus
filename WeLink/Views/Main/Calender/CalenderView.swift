@@ -214,8 +214,12 @@ struct MemoSheetView: View {
                 month = comps.month ?? month
                 day = comps.day ?? day
             }
-            .onChange(of: month) { _ in updateSelectedDate() }
-            .onChange(of: day) { _ in updateSelectedDate() }
+            .onChange(of: month) { oldValue, newValue in
+                updateSelectedDate()
+            }
+            .onChange(of: day) { oldValue, newValue in
+                updateSelectedDate()
+            }
             
             VStack(alignment: .leading) {
                 Text("작성자")

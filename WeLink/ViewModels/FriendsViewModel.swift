@@ -100,35 +100,53 @@ class FriendsViewModel: ObservableObject {
     
     // MARK: - Image Preloading
     func preloadImages(for cards: [CardModel]) {
-        DispatchQueue.global(qos: .userInitiated).async {
+        // Create a sendable copy of the cards data
+        let cardData: [(Int, Data)] = cards.enumerated().compactMap { index, card in
+            guard !card.imageData.isEmpty else { return nil }
+            return (index, card.imageData)
+        }
+        
+        Task {
             var newPreloadedImages: [Int: UIImage] = [:]
-            for (index, card) in cards.enumerated() {
-                if !card.imageData.isEmpty, let uiImage = UIImage(data: card.imageData) {
-                    let resizedImage = self.resizeImageForBackground(uiImage)
+            
+            for (index, imageData) in cardData {
+                if let uiImage = UIImage(data: imageData) {
+                    let resizedImage = await Self.resizeImageForBackground(uiImage)
                     newPreloadedImages[index] = resizedImage
                 }
             }
-            DispatchQueue.main.async {
-                self.preloadedImages = newPreloadedImages
-            }
+            
+            self.updatePreloadedImages(newPreloadedImages)
         }
     }
     
-    private func resizeImageForBackground(_ image: UIImage) -> UIImage {
-        let screenSize = UIScreen.main.bounds.size
-        let maxDimension = max(screenSize.width, screenSize.height) * 1.5
-        
-        let imageSize = image.size
-        let scale = maxDimension / max(imageSize.width, imageSize.height)
-        
-        let targetSize = CGSize(
-            width: imageSize.width * scale,
-            height: imageSize.height * scale
-        )
-        
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-        return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: targetSize))
+    // Update preloaded images on main actor
+    private func updatePreloadedImages(_ images: [Int: UIImage]) {
+        self.preloadedImages = images
+    }
+    
+    // Made static and async to allow background usage
+    private static func resizeImageForBackground(_ image: UIImage) async -> UIImage {
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                let screenSize = UIScreen.main.bounds.size
+                let maxDimension = max(screenSize.width, screenSize.height) * 1.5
+                
+                let imageSize = image.size
+                let scale = maxDimension / max(imageSize.width, imageSize.height)
+                
+                let targetSize = CGSize(
+                    width: imageSize.width * scale,
+                    height: imageSize.height * scale
+                )
+                
+                let renderer = UIGraphicsImageRenderer(size: targetSize)
+                let resizedImage = renderer.image { _ in
+                    image.draw(in: CGRect(origin: .zero, size: targetSize))
+                }
+                
+                continuation.resume(returning: resizedImage)
+            }
         }
     }
     
