@@ -15,23 +15,16 @@ struct OnboardingView: View {
             ZStack {
                 Color(hex: "#2C2C2C")
                     .ignoresSafeArea()
-                    .onTapGesture {
-                        viewModel.handleTap()
-                    }
                 
                 if viewModel.isFinalStep {
                     FinalView()
-                } else if viewModel.isFirstStep {
+                } else if viewModel.currentStep == 1 && !viewModel.isTapped {
                     InitialView()
+                        .onTapGesture {
+                            viewModel.handleTap()
+                        }
                 } else {
                     OnboardingStepView(viewModel: viewModel)
-                }
-            }
-            .navigationDestination(isPresented: $viewModel.isTapped) {
-                if viewModel.isFirstStep {
-                    OnboardingStepView(viewModel: viewModel)
-                } else {
-                    FinalView()
                 }
             }
         }
@@ -104,55 +97,75 @@ struct OnboardingStepView: View {
                 
                 Spacer()
                 
-                HStack {
-                    NavigationLink(destination: FinalView()) {
-                        Text("Skip")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(Color(hex: "#C0FF00"))
-                            .padding(.leading, 30)
-                    }
-                    
-                    Spacer()
-                    
-                    // Indicator
-                    HStack(spacing: 10) {
-                        ForEach(1...3, id: \.self) { index in
-                            if index == viewModel.currentStep {
-                                Capsule()
-                                    .fill(Color(hex: "#C0FF00"))
-                                    .frame(width: 20, height: 10)
-                            } else {
-                                Circle()
-                                    .fill(Color.gray.opacity(0.6))
-                                    .frame(width: 10, height: 10)
-                            }
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    if viewModel.showDoneButton {
-                        NavigationLink(destination: FinalView()) {
-                            Text("Done")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(Color(hex: "#C0FF00"))
-                                .padding(.trailing, 30)
-                        }
-                    } else if viewModel.showArrow {
-                        Button(action: {
-                            viewModel.nextStep()
-                        }) {
-                            Image(systemName: "arrow.forward")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(Color(hex: "#C0FF00"))
-                                .padding(.trailing, 30)
-                        }
-                    }
-                }
-                .padding(.bottom, 10)
+                OnboardingBottomNavigation(viewModel: viewModel)
             }
             .navigationBarBackButtonHidden(true)
         }
+    }
+}
+
+// MARK: - Bottom Navigation (하단 네비게이션 분리)
+struct OnboardingBottomNavigation: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+    
+    var body: some View {
+        HStack {
+            Button(action: {
+                viewModel.skipOnboarding()
+            }) {
+                Text("Skip")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(Color(hex: "#C0FF00"))
+                    .padding(.leading, 30)
+            }
+            
+            Spacer()
+            
+            HStack(spacing: 10) {
+                ForEach(1...3, id: \.self) { index in
+                    if index == viewModel.currentStep {
+                        Capsule()
+                            .fill(Color(hex: "#C0FF00"))
+                            .frame(width: 20, height: 10)
+                    } else {
+                        Circle()
+                            .fill(Color.gray.opacity(0.6))
+                            .frame(width: 10, height: 10)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // 오른쪽 버튼 영역
+            if viewModel.showDoneButton {
+                Button(action: {
+                    viewModel.skipOnboarding()
+                }) {
+                    Text("Done")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(Color(hex: "#C0FF00"))
+                        .padding(.trailing, 30)
+                }
+            } else if viewModel.showArrow {
+                // 다음 페이지로 이동하는 버튼
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        viewModel.nextStep()
+                    }
+                }) {
+                    Image(systemName: "arrow.forward")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(Color(hex: "#C0FF00"))
+                        .padding(.trailing, 30)
+                }
+            } else {
+                Color.clear
+                    .frame(width: 60, height: 40)
+            }
+        }
+        .frame(height: 70)
+        .padding(.bottom, 10)
     }
 }
 
