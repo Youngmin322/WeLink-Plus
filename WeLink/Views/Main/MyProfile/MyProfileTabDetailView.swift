@@ -7,7 +7,6 @@
 
 import SwiftUI
 
-
 struct MyProfileTabDetailView: View {
     var myProfile: CardModel
     @State private var currentTopic: mainTopic
@@ -51,20 +50,14 @@ struct MyProfileTabDetailView: View {
             .navigationBarHidden(true)
             .ignoresSafeArea()
             .onAppear{
-                NotificationCenter.default.post(name: .hideTabBar, object: nil)
-                
                 for topic in myProfile.topics {
                     topic.isSelected = false
                 }
                 currentTopic = myProfile.topics[0]
                 currentTopic.isSelected = true
             }
-            .onDisappear {
-                NotificationCenter.default.post(name: .showTabBar, object: nil)
-            }
             
             upperButtons(dismiss: {
-                NotificationCenter.default.post(name: .showTabBar, object: nil)
                 dismiss()
             }, showMenu: $showMenu)
                 .padding(.top, -30)

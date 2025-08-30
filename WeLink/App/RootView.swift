@@ -15,7 +15,8 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if (myID.count > 0 && cards.contains { $0.id == myID.last!.id }) {
+            if let lastMyID = myID.last,
+               cards.contains(where: { $0.id == lastMyID.id }) {
                 ContentView()
             } else {
                 OnboardingView()
