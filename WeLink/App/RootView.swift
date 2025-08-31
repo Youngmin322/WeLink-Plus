@@ -15,6 +15,7 @@ struct RootView: View {
 
     var body: some View {
         Group {
+            // 더 안전한 옵셔널 처리
             if let lastMyID = myID.last,
                cards.contains(where: { $0.id == lastMyID.id }) {
                 ContentView()

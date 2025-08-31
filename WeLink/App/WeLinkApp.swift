@@ -27,7 +27,10 @@ struct WeLinkApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            NavigationStack {
+                RootView()
+                    .navigationBarHidden(true)
+            }
         }
         .modelContainer(sharedModelContainer)
     }

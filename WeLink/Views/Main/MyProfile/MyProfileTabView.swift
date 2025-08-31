@@ -21,7 +21,6 @@ struct MyProfileTabView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background image (static, not rebuilt on flip)
                 if let myProfile = myProfile {
                     Image(uiImage: UIImage(data: myProfile.imageData)!)
                         .resizable()
@@ -54,7 +53,6 @@ struct MyProfileTabView: View {
                     }
                     .padding(.bottom, 30)
                     
-                    // Flipping card ZStack
                     if let myProfile = myProfile {
                         FlippingCardView(
                             isFlipped: $isFlipped,
@@ -63,8 +61,6 @@ struct MyProfileTabView: View {
                     }
                 }
                 .padding(.bottom, 100)
-                
-                MenuOverlay(showMenu: $showMenu, myProfile: $myProfile)
             }
         }
         .navigationBarHidden(true)
@@ -193,9 +189,9 @@ private struct FrontCardView: View {
         ZStack {
             Image(uiImage: UIImage(data: myProfile.imageData)!)
                 .resizable()
-                .scaledToFill()     // 이미지 비율 유지하며 꽉 채우기
+                .scaledToFill()
                 .frame(width: 302, height: 500)
-                .clipped()          // 프레임 바깥 부분 잘라내기
+                .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 20))
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)

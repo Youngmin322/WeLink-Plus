@@ -11,21 +11,20 @@ struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
     
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color(hex: "#2C2C2C")
-                    .ignoresSafeArea()
-                
-                if viewModel.isFinalStep {
-                    FinalView()
-                } else if viewModel.currentStep == 1 && !viewModel.isTapped {
-                    InitialView()
-                        .onTapGesture {
-                            viewModel.handleTap()
-                        }
-                } else {
-                    OnboardingStepView(viewModel: viewModel)
-                }
+        // NavigationStack 제거
+        ZStack {
+            Color(hex: "#2C2C2C")
+                .ignoresSafeArea()
+            
+            if viewModel.isFinalStep {
+                FinalView()
+            } else if viewModel.currentStep == 1 && !viewModel.isTapped {
+                InitialView()
+                    .onTapGesture {
+                        viewModel.handleTap()
+                    }
+            } else {
+                OnboardingStepView(viewModel: viewModel)
             }
         }
     }
@@ -99,12 +98,11 @@ struct OnboardingStepView: View {
                 
                 OnboardingBottomNavigation(viewModel: viewModel)
             }
-            .navigationBarBackButtonHidden(true)
         }
     }
 }
 
-// MARK: - Bottom Navigation (하단 네비게이션 분리)
+// MARK: - Bottom Navigation
 struct OnboardingBottomNavigation: View {
     @ObservedObject var viewModel: OnboardingViewModel
     
@@ -171,6 +169,8 @@ struct OnboardingBottomNavigation: View {
 
 // MARK: - Final View
 struct FinalView: View {
+    @Environment(\.modelContext) private var modelContext
+    
     var body: some View {
         ZStack {
             Color(hex: "#C0FF00")
@@ -199,7 +199,10 @@ struct FinalView: View {
                 
                 Spacer()
                 
-                NavigationLink(destination: ProfileCustomView(progress: 1.0 / 4.0, isEdit: false)) {
+                // NavigationLink를 Button으로 변경
+                Button(action: {
+                    completeOnboarding()
+                }) {
                     Text("시작하기")
                         .font(.headline)
                         .foregroundColor(.white)
@@ -211,7 +214,13 @@ struct FinalView: View {
             }
             .padding(.bottom, 20)
         }
-        .navigationBarBackButtonHidden(true)
+    }
+    
+    private func completeOnboarding() {
+        // MyUUID 생성하고 저장해서 RootView가 ContentView로 전환되도록
+        let newMyUUID = MyUUID(id: UUID())
+        modelContext.insert(newMyUUID)
+        try? modelContext.save()
     }
 }
 
