@@ -7,17 +7,22 @@
 
 import SwiftUI
 
+// MARK: - Notification Extension
+extension Notification.Name {
+    static let onboardingCompleted = Notification.Name("onboardingCompleted")
+}
+
 struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
+    @State private var showProfileCustomView = false
     
     var body: some View {
-        // NavigationStack 제거
         ZStack {
             Color(hex: "#2C2C2C")
                 .ignoresSafeArea()
             
             if viewModel.isFinalStep {
-                FinalView()
+                FinalView(showProfileCustomView: $showProfileCustomView)
             } else if viewModel.currentStep == 1 && !viewModel.isTapped {
                 InitialView()
                     .onTapGesture {
@@ -26,6 +31,9 @@ struct OnboardingView: View {
             } else {
                 OnboardingStepView(viewModel: viewModel)
             }
+        }
+        .fullScreenCover(isPresented: $showProfileCustomView) {
+            ProfileCustomView(progress: 0.25, isEdit: false)
         }
     }
 }
@@ -135,7 +143,6 @@ struct OnboardingBottomNavigation: View {
             
             Spacer()
             
-            // 오른쪽 버튼 영역
             if viewModel.showDoneButton {
                 Button(action: {
                     viewModel.skipOnboarding()
@@ -146,7 +153,6 @@ struct OnboardingBottomNavigation: View {
                         .padding(.trailing, 30)
                 }
             } else if viewModel.showArrow {
-                // 다음 페이지로 이동하는 버튼
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         viewModel.nextStep()
@@ -169,7 +175,7 @@ struct OnboardingBottomNavigation: View {
 
 // MARK: - Final View
 struct FinalView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Binding var showProfileCustomView: Bool
     
     var body: some View {
         ZStack {
@@ -199,7 +205,6 @@ struct FinalView: View {
                 
                 Spacer()
                 
-                // NavigationLink를 Button으로 변경
                 Button(action: {
                     completeOnboarding()
                 }) {
@@ -217,10 +222,18 @@ struct FinalView: View {
     }
     
     private func completeOnboarding() {
-        // MyUUID 생성하고 저장해서 RootView가 ContentView로 전환되도록
-        let newMyUUID = MyUUID(id: UUID())
-        modelContext.insert(newMyUUID)
-        try? modelContext.save()
+        print("온보딩 완료 처리 시작")
+        
+        // 온보딩 완료 상태 저장
+        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+        print("UserDefaults에 온보딩 완료 상태 저장됨")
+        
+        // 상위 뷰에 완료 알림
+        NotificationCenter.default.post(name: .onboardingCompleted, object: nil)
+        print("온보딩 완료 알림 전송됨")
+        
+        // ProfileCustomView로 화면 전환
+        showProfileCustomView = true
     }
 }
 

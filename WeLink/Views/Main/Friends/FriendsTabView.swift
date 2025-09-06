@@ -129,17 +129,17 @@ struct FriendsTabView: View {
             }
             
             if !cards.isEmpty {
-                preloadImages(for: cards) // cards 배열 사용
+                viewModel.preloadImages(for: cards) // ViewModel로 위임
             }
         }
         .onChange(of: allCards.count) { oldCount, newCount in
             if newCount > oldCount {
-                print("새 카드가 추가되었습니다. 총 \(newCount)개")
+                print("새 카드가 추가되었습니다. 이 \(newCount)개")
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     if !self.cards.isEmpty {
                         self.viewModel.currentIndex = min(self.viewModel.currentIndex, self.cards.count - 1)
-                        self.preloadImages(for: self.cards) // cards 배열 사용
+                        self.viewModel.preloadImages(for: self.cards) // ViewModel로 위임
                     }
                 }
             }
@@ -155,7 +155,7 @@ struct FriendsTabView: View {
                         self.viewModel.currentIndex = min(self.viewModel.currentIndex, newValue.count - 1)
                     }
                 }
-                self.preloadImages(for: newValue) // 필터링된 cards 배열 사용
+                self.viewModel.preloadImages(for: newValue) // ViewModel로 위임
             }
         }
         .onChange(of: viewModel.searchText) { _, _ in
@@ -253,42 +253,7 @@ extension FriendsTabView {
             CardDataService.insertDummyCards(into: modelContext)
         } else {
             // 현재 화면에 보이는 cards 배열로 preload
-            preloadImages(for: cards)
-        }
-    }
-    
-    // MARK: - 수정된 Image Preloading
-    private func preloadImages(for displayCards: [CardModel]) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            var newPreloadedImages: [Int: UIImage] = [:]
-            // 현재 화면에 표시되는 cards 배열의 인덱스 사용
-            for (index, card) in displayCards.enumerated() {
-                if !card.imageData.isEmpty, let uiImage = UIImage(data: card.imageData) {
-                    let resizedImage = self.resizeImageForBackground(uiImage)
-                    newPreloadedImages[index] = resizedImage
-                }
-            }
-            DispatchQueue.main.async {
-                self.viewModel.preloadedImages = newPreloadedImages
-            }
-        }
-    }
-    
-    private func resizeImageForBackground(_ image: UIImage) -> UIImage {
-        let screenSize = UIScreen.main.bounds.size
-        let maxDimension = max(screenSize.width, screenSize.height) * 0.6
-        
-        let imageSize = image.size
-        let scale = maxDimension / max(imageSize.width, imageSize.height)
-        
-        let targetSize = CGSize(
-            width: imageSize.width * scale,
-            height: imageSize.height * scale
-        )
-        
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-        return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: targetSize))
+            viewModel.preloadImages(for: cards) // ViewModel로 위임
         }
     }
 }

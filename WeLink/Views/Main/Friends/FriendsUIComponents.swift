@@ -134,11 +134,15 @@ struct FriendsEmptyStateView: View {
     }
 }
 
-// MARK: - Background Image View
+// MARK: - Background Image View (최적화됨)
 struct BackgroundImageView: View {
     let cards: [CardModel]
     let currentIndex: Int
     let preloadedImages: [Int: UIImage]
+    
+    // 스크롤 상태 추가
+    @State private var isScrolling = false
+    @State private var scrollTimer: Timer?
     
     var body: some View {
         Color.black
@@ -166,10 +170,29 @@ struct BackgroundImageView: View {
                                     endPoint: .bottom
                                 )
                             )
-                            .animation(.easeInOut(duration: 0.4), value: currentIndex)
+                            // 스크롤 중이 아닐 때만 애니메이션 적용
+                            .animation(
+                                isScrolling ? .none : .easeInOut(duration: 0.4),
+                                value: currentIndex
+                            )
                     }
                 }
             )
             .clipped()
+            .onChange(of: currentIndex) { _, _ in
+                handleIndexChange()
+            }
+    }
+    
+    private func handleIndexChange() {
+        isScrolling = true
+        
+        // 타이머 재설정
+        scrollTimer?.invalidate()
+        scrollTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { _ in
+            withAnimation(.easeInOut(duration: 0.4)) {
+                isScrolling = false
+            }
+        }
     }
 }

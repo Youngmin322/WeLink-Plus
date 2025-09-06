@@ -98,23 +98,61 @@ class FriendsViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Image Preloading
+    // MARK: - Image Preloading (수정됨)
     func preloadImages(for cards: [CardModel]) {
-        // Create a sendable copy of the cards data
-        let cardData: [(Int, Data)] = cards.enumerated().compactMap { index, card in
-            guard !card.imageData.isEmpty else { return nil }
+        guard !cards.isEmpty else {
+            print("❌ preloadImages: cards가 비어있음")
+            return
+        }
+        
+        print("🔄 preloadImages 시작 - 총 \(cards.count)개 카드, 현재 인덱스: \(currentIndex)")
+        
+        // 모든 카드를 프리로드하도록 수정 (성능 문제가 있다면 나중에 다시 제한)
+        let cardsToPreload = cards
+        
+        let cardData: [(Int, Data)] = cardsToPreload.enumerated().compactMap { index, card in
+            guard !card.imageData.isEmpty else {
+                print("⚠️ 카드 \(index)(\(card.name))의 imageData가 비어있음")
+                return nil
+            }
+            print("✅ 카드 \(index)(\(card.name)) 프리로드 대상에 추가")
             return (index, card.imageData)
         }
         
+        print("📊 프리로드할 카드 데이터: \(cardData.count)개")
+        
         Task {
-            var newPreloadedImages: [Int: UIImage] = [:]
+            var newPreloadedImages = preloadedImages
             
             for (index, imageData) in cardData {
+                // 이미 있는 이미지는 스킵하되 로그 출력
+                if newPreloadedImages[index] != nil {
+                    print("⏭️ 카드 \(index) 이미지 이미 존재, 스킵")
+                    continue
+                }
+                
                 if let uiImage = UIImage(data: imageData) {
+                    print("🖼️ 카드 \(index) 이미지 리사이즈 중...")
                     let resizedImage = await Self.resizeImageForBackground(uiImage)
                     newPreloadedImages[index] = resizedImage
+                    print("✅ 카드 \(index) 이미지 프리로드 완료")
+                } else {
+                    print("❌ 카드 \(index) 이미지 데이터를 UIImage로 변환 실패")
                 }
             }
+            
+            // 메모리 관리를 위한 제거 로직을 더 관대하게 수정
+            let maxDistance = 5 // 현재 인덱스에서 5 이상 떨어진 이미지만 제거
+            let indicesToKeep = Set(max(0, currentIndex - maxDistance)...min(cards.count - 1, currentIndex + maxDistance))
+            let removedCount = newPreloadedImages.count
+            newPreloadedImages = newPreloadedImages.filter { indicesToKeep.contains($0.key) }
+            
+            if removedCount != newPreloadedImages.count {
+                print("🗑️ 메모리 정리: \(removedCount - newPreloadedImages.count)개 이미지 제거")
+            }
+            
+            print("📈 최종 프리로드된 이미지 수: \(newPreloadedImages.count)")
+            print("🎯 프리로드된 인덱스들: \(newPreloadedImages.keys.sorted())")
             
             self.updatePreloadedImages(newPreloadedImages)
         }
@@ -122,7 +160,9 @@ class FriendsViewModel: ObservableObject {
     
     // Update preloaded images on main actor
     private func updatePreloadedImages(_ images: [Int: UIImage]) {
+        let oldCount = self.preloadedImages.count
         self.preloadedImages = images
+        print("🔄 preloadedImages 업데이트: \(oldCount) -> \(images.count)")
     }
     
     // Made static and async to allow background usage
@@ -130,7 +170,7 @@ class FriendsViewModel: ObservableObject {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 let screenSize = UIScreen.main.bounds.size
-                let maxDimension = max(screenSize.width, screenSize.height) * 1.5
+                let maxDimension = max(screenSize.width, screenSize.height) * 1.2
                 
                 let imageSize = image.size
                 let scale = maxDimension / max(imageSize.width, imageSize.height)
@@ -140,7 +180,11 @@ class FriendsViewModel: ObservableObject {
                     height: imageSize.height * scale
                 )
                 
-                let renderer = UIGraphicsImageRenderer(size: targetSize)
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = 1.0
+                format.opaque = false
+                
+                let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
                 let resizedImage = renderer.image { _ in
                     image.draw(in: CGRect(origin: .zero, size: targetSize))
                 }
