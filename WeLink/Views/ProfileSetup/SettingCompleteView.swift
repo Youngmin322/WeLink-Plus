@@ -5,13 +5,6 @@
 //  Created by 럭스(양광모) on 8/7/25.
 //
 
-//
-//  CategoryView.swift
-//  WeLink
-//
-//  Created by 럭스(양광모) on 8/6/25.
-//
-
 import SwiftUI
 
 struct SettingCompleteView: View {
@@ -57,14 +50,13 @@ struct SettingCompleteView: View {
                     Spacer()
                 }
                 .frame(width: 330)
-                //.padding(.bottom, 20)
                 
                 ZStack{
                     //가운데 오브젝트
                     let objWidth: CGFloat = 350
                     let objHeight: CGFloat = 350
                     Image("Onboarding2")
-                        .resizable()               // 이미지 크기 조정 가능
+                        .resizable()
                         .scaledToFit()
                         .frame(width: objWidth, height: objHeight, alignment: .leading)
                         .padding(.top, 75)
@@ -89,9 +81,6 @@ struct SettingCompleteView: View {
                     }
                 }
                 
-                
-                
-                
                 //중하단 텍스트
                 VStack(spacing: 10){
                     Text("취향을 파악했어요!")
@@ -103,40 +92,30 @@ struct SettingCompleteView: View {
                 }
                 .padding(.top)
                 
-                
                 VStack(){
                     let nextButtonWidth: CGFloat = 310
                     let nextButtonHeight: CGFloat = 25
                     
                     Spacer()
                     NavigationLink(
-                            destination: ContentView().navigationBarHidden(true)
-                                .onAppear {
-                                    context.insert(cardModel)
-                                    try? context.save()
-                                }
-                        ) {
-                            Text("앱 시작하기")
-                                .font(.headline)
-                                .foregroundColor(.black)
-                                .frame(width: nextButtonWidth, height: nextButtonHeight)
-                                .padding()
-                                .background(Color("MainColor"))
-                                .clipShape(Capsule())
-                        }
+                        destination: ContentView().navigationBarHidden(true)
+                            .onAppear {
+                                context.insert(cardModel)
+                                try? context.save()
+                            }
+                    ) {
+                        Text("앱 시작하기")
+                            .font(.headline)
+                            .foregroundColor(.black)
+                            .frame(width: nextButtonWidth, height: nextButtonHeight)
+                            .padding()
+                            .background(Color("MainColor"))
+                            .clipShape(Capsule())
+                    }
                 }
             }
             
         }
         .navigationBarHidden(true)
-
     }
-    
 }
-
-
-
-
-//#Preview{
-//    SettingCompleteView(progress: 5.0 / 5.0)
-//}

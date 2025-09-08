@@ -31,7 +31,6 @@ struct MyProfileTabView: View {
                 }
                 
                 VStack {
-                    // Header (static)
                     HStack(spacing: 160) {
                         Text("나의 카드")
                             .foregroundColor(.white)

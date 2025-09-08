@@ -11,183 +11,75 @@ import PhotosUI
 
 struct ProfileCustomView: View {
     var progress: CGFloat
-    @State private var name: String = ""
-    @State private var birthDate = Date()
-    @State private var nickname: String = ""
-    @State private var introduction: String = ""
-    @State private var mbti: String = ""
-    @State private var job: String = ""
-    @State private var showPicker = false
-    @State private var selectedImage: UIImage?
-    @State private var showDatePicker = false
-    @FocusState private var focusedField: FocusField?
-
-    @State private var cardModel: CardModel?
-    @State private var goNext:Bool = false
-    
-    @Environment(\.modelContext) private var context
-    
-    @Query private var IDs: [MyUUID]
-    @Query private var cards: [CardModel]
-    
-    private var myID: MyUUID = MyUUID(id: UUID())
-    
     var isEdit: Bool
     
-    init(progress: CGFloat, cardModel: CardModel? = nil, isEdit: Bool){
+    @StateObject private var viewModel: ProfileCustomViewModel
+    @FocusState private var focusedField: ProfileCustomViewModel.FocusField?
+    @Environment(\.modelContext) private var context
+    
+    init(progress: CGFloat, cardModel: CardModel? = nil, isEdit: Bool) {
         self.progress = progress
-        self.cardModel = cardModel
         self.isEdit = isEdit
-        if let cardModel = cardModel {
-            self.myID = isEdit ? MyUUID(id: cardModel.id) : self.myID
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            self._birthDate = State(initialValue: formatter.date(from: cardModel.birthDate) ?? Date())
-        }
+        self._viewModel = StateObject(wrappedValue: ProfileCustomViewModel(cardModel: cardModel, isEdit: isEdit))
     }
     
-    enum FocusField: Hashable {
-        case name, nickname, introduction, mbti, job
-    }
-    
-    private func calculateAgeByYear(from birthDate: Date) -> Int {
-        let calendar = Calendar.current
-        let birthYear = calendar.component(.year, from: birthDate)
-        let currentYear = calendar.component(.year, from: Date())
-        return currentYear - birthYear + 1
-    }
-
-    private func calculateDaysUntilBirthday(from birthDate: Date) -> Int {
-        let calendar = Calendar.current
-        let now = Date()
-        var nextBirthdayComponents = calendar.dateComponents([.month, .day], from: birthDate)
-        nextBirthdayComponents.year = calendar.component(.year, from: now)
-        var nextBirthday = calendar.date(from: nextBirthdayComponents)!
-        if nextBirthday < now {
-            nextBirthdayComponents.year! += 1
-            nextBirthday = calendar.date(from: nextBirthdayComponents)!
-        }
-        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: nextBirthday)).day ?? 0
-        return days
-    }
-    
-    private func formatDateToString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: date)
-    }
-    
-var body: some View {
-    NavigationStack {
-        ZStack{
-            Color("BackgroundColor")
-                .ignoresSafeArea()
-            
-            VStack{
-                ZStack(alignment: .leading) {
-                    let barWidth: CGFloat = 324
-                    let barHeight: CGFloat = 2
-                    
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.4))
-                        .frame(width: barWidth, height: barHeight)
-                    
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color("MainColor"))
-                        .frame(width: barWidth * 0.2, height: barHeight)
-                }
-                .padding(.bottom, 20)
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color("BackgroundColor")
+                    .ignoresSafeArea()
                 
-                ScrollView(.vertical) {
-                    VStack {
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text("프로필을 입력해주세요!")
-                                .foregroundColor(.white)
-                                .font(.system(size: 21))
-                                .bold()
-                            Text("당신만의 취향카드를 만들어드릴게요.")
-                                .font(.system(size: 15))
-                                .foregroundColor(Color("MainColor"))
-                        }
-                        .padding(.trailing, 100)
-
-                        Spacer(minLength: 34)
-
-                        profileImageInputView
-                        userInfoFieldsView
-                        
-                        let age = calculateAgeByYear(from: birthDate)
-                        let dDay = calculateDaysUntilBirthday(from: birthDate)
-                        
-                        let isReady = (!name.isEmpty &&
-                        !nickname.isEmpty &&
-                        !introduction.isEmpty &&
-                        !mbti.isEmpty &&
-                        !job.isEmpty &&
-                        selectedImage != nil)
-                        
+                VStack {
+                    progressBarView
+                    
+                    ScrollView(.vertical) {
                         VStack {
-                                Button(action: {
-                                    if isEdit {
-                                        cardModel?.name = name
-                                        cardModel?.age = age
-                                        cardModel?.cardDescription = introduction
-                                        cardModel?.birthDate = formatDateToString(birthDate)
-                                        cardModel?.mbti = mbti
-                                        cardModel?.tag = job
-                                        cardModel?.dDay = dDay
-                                        cardModel?.imageData = selectedImage!.pngData()!
-                                    }
-                                    else {
-                                        cardModel = CardModel(id: myID.id,
-                                                              name: name,
-                                                              age: age,
-                                                              description: introduction,
-                                                              birthDate: formatDateToString(birthDate),
-                                                              mbti: mbti,
-                                                              tag: job,
-                                                              dDay: dDay,
-                                                              imageData: selectedImage!.pngData()!
-                                        )
-                                        
-                                        context.insert(myID)
-                                        try? context.save()
-                                    }
-                                    
-                                    goNext = true
-                                }) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 45)
-                                            .foregroundColor(isReady ? Color("MainColor") : Color(.gray))
-                                            .frame(width: 324, height: 58)
-                                        Text("확인")
-                                            .bold()
-                                            .foregroundColor(.black)
-                                            .font(.system(size: 17))
-                                    }
-                                    .padding(.bottom, isEdit ? 55 : 0)
-                                }
-
-                                .navigationDestination(isPresented: $goNext) {
-                                    if isEdit {
-                                        MyProfileTabView()
-                                    }
-                                    else{
-                                        if let cardModel = cardModel {
-                                            CategoryView(progress: 2.0/4.0, cardModel: cardModel, isEdit: false)
-                                        }
-                                    }
-                                }
-                            }
+                            headerView
+                            Spacer(minLength: 34)
+                            profileImageInputView
+                            userInfoFieldsView
+                            confirmButtonView
+                        }
                     }
                 }
             }
         }
+        .navigationBarHidden(true)
     }
 }
 
+// MARK: - View Components
+extension ProfileCustomView {
+    
+    private var progressBarView: some View {
+        ZStack(alignment: .leading) {
+            let barWidth: CGFloat = 324
+            let barHeight: CGFloat = 2
+            
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color.gray.opacity(0.4))
+                .frame(width: barWidth, height: barHeight)
+            
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color("MainColor"))
+                .frame(width: barWidth * 0.2, height: barHeight)
+        }
+        .padding(.bottom, 20)
+    }
+    
+    private var headerView: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("프로필을 입력해주세요!")
+                .foregroundColor(.white)
+                .font(.system(size: 21))
+                .bold()
+            Text("당신만의 취향카드를 만들어드릴게요.")
+                .font(.system(size: 15))
+                .foregroundColor(Color("MainColor"))
+        }
+        .padding(.trailing, 100)
+    }
+    
     private var profileImageInputView: some View {
         VStack {
             ZStack {
@@ -199,10 +91,10 @@ var body: some View {
                             .stroke(Color.white, lineWidth: 1)
                     )
                     .onTapGesture {
-                        showPicker = true
+                        viewModel.toggleShowPicker()
                     }
 
-                if let image = selectedImage {
+                if let image = viewModel.selectedImage {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
@@ -210,7 +102,7 @@ var body: some View {
                         .clipShape(RoundedRectangle(cornerRadius: 20))
                         .overlay(
                             Button(action: {
-                                showPicker = true
+                                viewModel.toggleShowPicker()
                             }) {
                                 ZStack {
                                     Circle()
@@ -240,18 +132,17 @@ var body: some View {
         }
         .background(
             PhotoPickerWithPermission(
-                selectedImage: $selectedImage,
-                showPicker: $showPicker
+                selectedImage: $viewModel.selectedImage,
+                showPicker: $viewModel.showPicker
             )
         )
-        .navigationBarHidden(true)
     }
 
     private var userInfoFieldsView: some View {
         VStack(spacing: 40) {
             VStack(alignment: .leading, spacing: 20) {
                 Group {
-                    LabeledTextField(label: "이름", text: $name, focus: $focusedField, focusCase: .name)
+                    LabeledTextField(label: "이름", text: $viewModel.name, focus: $focusedField, focusCase: .name)
 
                     Text("생년월일")
                         .foregroundColor(Color(hex:0xCACACA))
@@ -259,10 +150,10 @@ var body: some View {
                         .font(.system(size: 16))
                     
                     Button(action: {
-                        showDatePicker.toggle()
+                        viewModel.toggleDatePicker()
                     }) {
                         HStack {
-                            Text(showDatePicker ? "생년월일을 선택하세요" : formatDateToString(birthDate))
+                            Text(viewModel.showDatePicker ? "생년월일을 선택하세요" : viewModel.formattedBirthDate)
                                 .foregroundColor(.white)
                             Spacer()
                             Image(systemName: "calendar")
@@ -276,14 +167,14 @@ var body: some View {
                                 .stroke(Color("CategoryColor"), lineWidth: 1.5)
                         )
                     }
-                    .sheet(isPresented: $showDatePicker) {
-                        DatePickerSheet(selectedDate: $birthDate, showDatePicker: $showDatePicker)
+                    .sheet(isPresented: $viewModel.showDatePicker) {
+                        DatePickerSheet(selectedDate: $viewModel.birthDate, showDatePicker: $viewModel.showDatePicker)
                     }
 
-                    LabeledTextField(label: "닉네임", text: $nickname, focus: $focusedField, focusCase: .nickname)
-                    LabeledTextField(label: "한줄소개", text: $introduction, focus: $focusedField, focusCase: .introduction)
-                    LabeledTextField(label: "MBTI", text: $mbti, focus: $focusedField, focusCase: .mbti)
-                    LabeledTextField(label: "직업", text: $job, focus: $focusedField, focusCase: .job)
+                    LabeledTextField(label: "닉네임", text: $viewModel.nickname, focus: $focusedField, focusCase: .nickname)
+                    LabeledTextField(label: "한줄소개", text: $viewModel.introduction, focus: $focusedField, focusCase: .introduction)
+                    LabeledTextField(label: "MBTI", text: $viewModel.mbti, focus: $focusedField, focusCase: .mbti)
+                    LabeledTextField(label: "직업", text: $viewModel.job, focus: $focusedField, focusCase: .job)
                 }
             }
             .padding(.horizontal, 30)
@@ -292,13 +183,42 @@ var body: some View {
             Spacer()
         }
     }
+    
+    private var confirmButtonView: some View {
+        VStack {
+            Button(action: {
+                viewModel.saveProfile(context: context)
+            }) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 45)
+                        .foregroundColor(viewModel.isFormValid ? Color("MainColor") : Color(.gray))
+                        .frame(width: 324, height: 58)
+                    Text("확인")
+                        .bold()
+                        .foregroundColor(.black)
+                        .font(.system(size: 17))
+                }
+                .padding(.bottom, isEdit ? 55 : 0)
+            }
+            .disabled(!viewModel.isFormValid)
+            .navigationDestination(isPresented: $viewModel.goNext) {
+                if isEdit {
+                    MyProfileTabView()
+                } else {
+                    if let cardModel = viewModel.cardModel {
+                        CategoryView(progress: 2.0/4.0, cardModel: cardModel, isEdit: false)
+                    }
+                }
+            }
+        }
+    }
 }
 
 struct LabeledTextField: View {
     let label: String
     @Binding var text: String
-    var focus: FocusState<ProfileCustomView.FocusField?>.Binding
-    var focusCase: ProfileCustomView.FocusField
+    var focus: FocusState<ProfileCustomViewModel.FocusField?>.Binding
+    var focusCase: ProfileCustomViewModel.FocusField
     
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
