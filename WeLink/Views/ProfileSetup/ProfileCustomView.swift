@@ -12,14 +12,14 @@ import PhotosUI
 struct ProfileCustomView: View {
     var progress: CGFloat
     @State private var name: String = ""
-    @State private var birthDate = Date() // Date() -> Date로 수정
+    @State private var birthDate = Date()
     @State private var nickname: String = ""
     @State private var introduction: String = ""
     @State private var mbti: String = ""
     @State private var job: String = ""
     @State private var showPicker = false
     @State private var selectedImage: UIImage?
-    @State private var showDatePicker = false // 추가된 State 변수
+    @State private var showDatePicker = false
     @FocusState private var focusedField: FocusField?
 
     @State private var cardModel: CardModel?
@@ -40,7 +40,6 @@ struct ProfileCustomView: View {
         self.isEdit = isEdit
         if let cardModel = cardModel {
             self.myID = isEdit ? MyUUID(id: cardModel.id) : self.myID
-            // 기존 cardModel의 birthDate String을 Date로 변환
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
             formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -49,10 +48,9 @@ struct ProfileCustomView: View {
     }
     
     enum FocusField: Hashable {
-        case name, nickname, introduction, mbti, job // birthDate 제거
+        case name, nickname, introduction, mbti, job
     }
     
-    // Date를 직접 받는 함수로 수정
     private func calculateAgeByYear(from birthDate: Date) -> Int {
         let calendar = Calendar.current
         let birthYear = calendar.component(.year, from: birthDate)
@@ -60,7 +58,6 @@ struct ProfileCustomView: View {
         return currentYear - birthYear + 1
     }
 
-    // Date를 직접 받는 함수로 수정
     private func calculateDaysUntilBirthday(from birthDate: Date) -> Int {
         let calendar = Calendar.current
         let now = Date()
@@ -75,7 +72,6 @@ struct ProfileCustomView: View {
         return days
     }
     
-    // Date를 String으로 변환하는 함수 추가
     private func formatDateToString(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -94,12 +90,10 @@ var body: some View {
                     let barWidth: CGFloat = 324
                     let barHeight: CGFloat = 2
                     
-                    // 회색 배경 바
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.gray.opacity(0.4))
                         .frame(width: barWidth, height: barHeight)
                     
-                    // 연두색 프로그레스 바
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color("MainColor"))
                         .frame(width: barWidth * 0.2, height: barHeight)
@@ -124,7 +118,6 @@ var body: some View {
                         profileImageInputView
                         userInfoFieldsView
                         
-                        // 수정된 나이, 디데이 계산
                         let age = calculateAgeByYear(from: birthDate)
                         let dDay = calculateDaysUntilBirthday(from: birthDate)
                         
@@ -133,7 +126,7 @@ var body: some View {
                         !introduction.isEmpty &&
                         !mbti.isEmpty &&
                         !job.isEmpty &&
-                        selectedImage != nil) // birthDate.isEmpty 제거
+                        selectedImage != nil)
                         
                         VStack {
                                 Button(action: {
@@ -141,7 +134,7 @@ var body: some View {
                                         cardModel?.name = name
                                         cardModel?.age = age
                                         cardModel?.cardDescription = introduction
-                                        cardModel?.birthDate = formatDateToString(birthDate) // String으로 변환
+                                        cardModel?.birthDate = formatDateToString(birthDate)
                                         cardModel?.mbti = mbti
                                         cardModel?.tag = job
                                         cardModel?.dDay = dDay
@@ -152,7 +145,7 @@ var body: some View {
                                                               name: name,
                                                               age: age,
                                                               description: introduction,
-                                                              birthDate: formatDateToString(birthDate), // String으로 변환
+                                                              birthDate: formatDateToString(birthDate),
                                                               mbti: mbti,
                                                               tag: job,
                                                               dDay: dDay,
@@ -258,23 +251,7 @@ var body: some View {
         VStack(spacing: 40) {
             VStack(alignment: .leading, spacing: 20) {
                 Group {
-                    Text("이름")
-                        .foregroundColor(Color(hex:0xCACACA))
-                        .bold()
-                        .font(.system(size: 16))
-                    TextField("", text: $name)
-                        .padding()
-                        .background(Color("TextFieldBackground"))
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(
-                                    focusedField == .name ? Color("MainColor") : Color("CategoryColor"),
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .foregroundColor(.white)
-                        .focused($focusedField, equals: .name)
+                    LabeledTextField(label: "이름", text: $name, focus: $focusedField, focusCase: .name)
 
                     Text("생년월일")
                         .foregroundColor(Color(hex:0xCACACA))
@@ -303,83 +280,45 @@ var body: some View {
                         DatePickerSheet(selectedDate: $birthDate, showDatePicker: $showDatePicker)
                     }
 
-                    Text("닉네임")
-                        .foregroundColor(Color(hex:0xCACACA))
-                        .bold()
-                        .font(.system(size: 16))
-                    TextField("", text: $nickname)
-                        .padding()
-                        .background(Color("TextFieldBackground"))
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(
-                                    focusedField == .nickname ? Color("MainColor") : Color("CategoryColor"),
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .foregroundColor(.white)
-                        .focused($focusedField, equals: .nickname)
-                    
-                    Text("한줄소개")
-                        .foregroundColor(Color(hex:0xCACACA))
-                        .bold()
-                        .font(.system(size: 16))
-                    TextField("", text: $introduction)
-                        .padding()
-                        .background(Color("TextFieldBackground"))
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(
-                                    focusedField == .introduction ? Color("MainColor") : Color("CategoryColor"),
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .foregroundColor(.white)
-                        .focused($focusedField, equals: .introduction)
-                    
-                    Text("MBTI")
-                        .foregroundColor(Color(hex:0xCACACA))
-                        .bold()
-                        .font(.system(size: 16))
-                    TextField("", text: $mbti)
-                        .padding()
-                        .background(Color("TextFieldBackground"))
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(
-                                    focusedField == .mbti ? Color("MainColor") : Color("CategoryColor"),
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .foregroundColor(.white)
-                        .focused($focusedField, equals: .mbti)
-                    
-                    Text("직업")
-                        .foregroundColor(Color(hex:0xCACACA))
-                        .bold()
-                        .font(.system(size: 16))
-                    TextField("", text: $job)
-                        .padding()
-                        .background(Color("TextFieldBackground"))
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(
-                                    focusedField == .job ? Color("MainColor") : Color("CategoryColor"),
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .foregroundColor(.white)
-                        .focused($focusedField, equals: .job)
+                    LabeledTextField(label: "닉네임", text: $nickname, focus: $focusedField, focusCase: .nickname)
+                    LabeledTextField(label: "한줄소개", text: $introduction, focus: $focusedField, focusCase: .introduction)
+                    LabeledTextField(label: "MBTI", text: $mbti, focus: $focusedField, focusCase: .mbti)
+                    LabeledTextField(label: "직업", text: $job, focus: $focusedField, focusCase: .job)
                 }
             }
             .padding(.horizontal, 30)
             .foregroundColor(Color("BackgroundColor"))
 
             Spacer()
+        }
+    }
+}
+
+struct LabeledTextField: View {
+    let label: String
+    @Binding var text: String
+    var focus: FocusState<ProfileCustomView.FocusField?>.Binding
+    var focusCase: ProfileCustomView.FocusField
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label)
+                .foregroundColor(Color(hex:0xCACACA))
+                .bold()
+                .font(.system(size: 16))
+            TextField("", text: $text)
+                .padding()
+                .background(Color("TextFieldBackground"))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(
+                            focus.wrappedValue == focusCase ? Color("MainColor") : Color("CategoryColor"),
+                            lineWidth: 1.5
+                        )
+                )
+                .foregroundColor(.white)
+                .focused(focus, equals: focusCase)
         }
     }
 }
