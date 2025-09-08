@@ -16,12 +16,14 @@ struct FriendsHeaderView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            if isSearching {
-                searchBarView
-            } else {
+            ZStack {
                 titleView
+                    .opacity(isSearching ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.25), value: isSearching)
+                searchBarView
+                    .opacity(isSearching ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.25), value: isSearching)
             }
-            
             searchToggleButton
         }
     }
@@ -54,6 +56,7 @@ struct FriendsHeaderView: View {
             if !searchText.isEmpty {
                 Button(action: {
                     searchText = ""
+                    isTextFieldFocused = false
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.white.opacity(0.6))
