@@ -11,66 +11,78 @@ import SwiftData
 struct MyProfileTabView: View {
     @Query private var myID: [MyUUID]
     @Query private var cards: [CardModel]
-    @State private var showMenu = false
-    @State private var value1: Double = 0.5
-    @State private var value2: Double = 0.5
-    @State private var value3: Double = 0.5
-    @State private var isFlipped = false
-    @State private var myProfile: CardModel? = nil
+    @StateObject private var viewModel = MyProfileTabViewModel()
     
     var body: some View {
         NavigationView {
             ZStack {
-                if let myProfile = myProfile {
-                    Image(uiImage: UIImage(data: myProfile.imageData)!)
-                        .resizable()
-                        .blur(radius: 3)
-                        .frame(width: 600, height: 1000)
-                        .ignoresSafeArea()
-                    
-                }
+                backgroundImageView
                 
                 VStack {
-                    HStack(spacing: 160) {
-                        Text("나의 카드")
-                            .foregroundColor(.white)
-                            .font(.system(size: 35))
-                            .bold()
-                        
-                        Button(action: {
-                            withAnimation(.easeInOut) {
-                                showMenu.toggle()
-                            }
-                        }) {
-                            Image(systemName: "ellipsis")
-                                .foregroundColor(Color("MainColor"))
-                                .font(.system(size: 24))
-                                .rotationEffect(Angle(degrees: 90))
-                                .bold()
-                                .padding()
-                        }
-                    }
-                    .padding(.bottom, 30)
+                    headerView
                     
-                    if let myProfile = myProfile {
+                    if let myProfile = viewModel.myProfile {
                         FlippingCardView(
-                            isFlipped: $isFlipped,
+                            isFlipped: $viewModel.isFlipped,
                             myProfile: myProfile
                         )
                     }
                 }
                 .padding(.bottom, 100)
+                
+                MenuOverlay(
+                    showMenu: $viewModel.showMenu,
+                    myProfile: $viewModel.myProfile
+                )
             }
         }
         .navigationBarHidden(true)
         .onAppear {
-            if let lastID = myID.last?.id {
-                myProfile = findMyProfile(cards: cards, id: lastID)
-            }
+            viewModel.loadProfile(from: myID, cards: cards)
         }
     }
 }
 
+// MARK: - View Components
+extension MyProfileTabView {
+    
+    private var backgroundImageView: some View {
+        Group {
+            if let myProfile = viewModel.myProfile {
+                Image(uiImage: UIImage(data: myProfile.imageData)!)
+                    .resizable()
+                    .blur(radius: 3)
+                    .frame(width: 600, height: 1000)
+                    .ignoresSafeArea()
+            }
+        }
+    }
+    
+    private var headerView: some View {
+        HStack(spacing: 160) {
+            Text("나의 카드")
+                .foregroundColor(.white)
+                .font(.system(size: 35))
+                .bold()
+            
+            Button(action: {
+                withAnimation(.easeInOut) {
+                    viewModel.toggleMenu()
+                }
+            }) {
+                Image(systemName: "ellipsis")
+                    .foregroundColor(Color("MainColor"))
+                    .font(.system(size: 24))
+                    .rotationEffect(Angle(degrees: 90))
+                    .bold()
+                    .padding()
+            }
+        }
+        .padding(.bottom, 30)
+    }
+}
+
+// MARK: - MenuOverlay
 private struct MenuOverlay: View {
     @Binding var showMenu: Bool
     @Binding var myProfile: CardModel?
@@ -120,43 +132,29 @@ private struct MenuOverlay: View {
                     .shadow(radius: 5)
                     .offset(x: 60, y: -270)
                 }
-                
-                MenuOverlay(showMenu: $showMenu, myProfile: $myProfile)
-                    .navigationDestination(isPresented: $goToProfileCustomView) {
-                        ProfileCustomView(
-                            progress: 1.0 / 4.0,
-                            cardModel: myProfile,
-                            isEdit: true
-                        )
-                        .onDisappear { goToProfileCustomView = false }
-                        .navigationBarHidden(true)
-                    }
-                    .navigationDestination(isPresented: $goToCategoryView) {
-                        if let profile = myProfile {
-                            CategoryView(progress: 2.0 / 4.0,
-                                         cardModel: profile,
-                                         isEdit: true,
-                                         keepGoing: $goToCategoryView
-                            )
-                            .navigationBarHidden(true)
-                        }
-                    }
+            }
+            .navigationDestination(isPresented: $goToProfileCustomView) {
+                ProfileCustomView(
+                    progress: 1.0 / 4.0,
+                    cardModel: myProfile,
+                    isEdit: true
+                )
+                .onDisappear { goToProfileCustomView = false }
+                .navigationBarHidden(true)
+            }
+            .navigationDestination(isPresented: $goToCategoryView) {
+                if let profile = myProfile {
+                    CategoryView(progress: 2.0 / 4.0,
+                                 cardModel: profile,
+                                 isEdit: true,
+                                 keepGoing: $goToCategoryView
+                    )
+                    .navigationBarHidden(true)
+                }
             }
         }
     }
 }
-
-func findMyProfile(cards: [CardModel], id: UUID)->CardModel{
-    var idx:Int = 0
-    for (i, card) in cards.enumerated(){
-        if card.id == id{
-            idx = i
-            break
-        }
-    }
-    return cards[idx]
-}
-
 
 // MARK: - FlippingCardView
 private struct FlippingCardView: View {
@@ -238,13 +236,9 @@ private struct FrontCardView: View {
                     ForEach([formattedBirthDate(from: myProfile.birthDate), (myProfile.mbti), myProfile.tag], id: \.self) { label in
                         ZStack {
                             RoundedRectangle(cornerRadius: 45)
-                            //                                .foregroundColor(Color(hex: 0xFFFFFF).opacity(0.25))
-                            //                                .frame(width: 76, height: 29)
-                            //
                                 .foregroundColor(Color.white)
                                 .frame(width: 76, height: 29)
                                 .opacity(0.25)
-                            
                             
                             Text(label)
                                 .foregroundColor(.white)
@@ -354,7 +348,7 @@ private struct BackCardView: View {
                                     .opacity(0.1)
                                     .frame(width: 121, height: 25)
                                 
-                                Text("# 키링, 인형 모의기")
+                                Text("# 키링, 인형 모으기")
                                     .font(.custom("Pretendard", size: 11))
                                     .foregroundColor(.black)
                             }
@@ -419,4 +413,36 @@ private struct BackCardView: View {
                 .offset(y: 20)
         }
     }
+}
+
+// MARK: - MyProfileTabViewModel
+@MainActor
+class MyProfileTabViewModel: ObservableObject {
+    @Published var showMenu = false
+    @Published var isFlipped = false
+    @Published var myProfile: CardModel? = nil
+    
+    func toggleMenu() {
+        showMenu.toggle()
+    }
+    
+    func toggleFlip() {
+        isFlipped.toggle()
+    }
+    
+    func loadProfile(from myIDs: [MyUUID], cards: [CardModel]) {
+        guard let lastID = myIDs.last?.id else { return }
+        myProfile = findMyProfile(cards: cards, id: lastID)
+    }
+    
+    private func findMyProfile(cards: [CardModel], id: UUID) -> CardModel? {
+        return cards.first { $0.id == id }
+    }
+}
+
+// MARK: - Helper Functions
+private func formattedBirthDate(from date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "MM.dd"
+    return formatter.string(from: date)
 }
