@@ -68,7 +68,7 @@ class ProfileCustomViewModel: ObservableObject {
     // MARK: - Private Helper Methods
     private func loadExistingCardData(_ card: CardModel) {
         name = card.name
-        nickname = card.name // assuming nickname is same as name for now
+        nickname = card.name
         introduction = card.cardDescription
         mbti = card.mbti
         job = card.tag

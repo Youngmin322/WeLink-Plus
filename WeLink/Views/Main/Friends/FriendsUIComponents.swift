@@ -56,7 +56,7 @@ struct FriendsHeaderView: View {
             if !searchText.isEmpty {
                 Button(action: {
                     searchText = ""
-                    isTextFieldFocused = false
+                    isTextFieldFocused = false // 포커스 해제 추가
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.white.opacity(0.6))
@@ -90,7 +90,22 @@ struct FriendsHeaderView: View {
     }
     
     private var searchToggleButton: some View {
-        Button(action: onToggleSearch) {
+        Button(action: {
+            if isSearching {
+                // 검색 종료: 모든 작업을 동기적으로 처리
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isTextFieldFocused = false
+                    onToggleSearch()
+                }
+            } else {
+                // 검색 시작
+                onToggleSearch()
+                // 검색 모드가 활성화된 후 포커스 설정
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    isTextFieldFocused = true
+                }
+            }
+        }) {
             ZStack {
                 Circle()
                     .fill(.ultraThinMaterial)
@@ -190,7 +205,6 @@ struct BackgroundImageView: View {
     private func handleIndexChange() {
         isScrolling = true
         
-        // 타이머 재설정
         scrollTimer?.invalidate()
         scrollTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { _ in
             withAnimation(.easeInOut(duration: 0.4)) {

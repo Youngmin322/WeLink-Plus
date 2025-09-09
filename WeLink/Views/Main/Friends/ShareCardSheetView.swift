@@ -28,7 +28,6 @@ struct ShareCardSheetView: View {
         return allCards.first { $0.id == myUUID }
     }
     
-    // 화면 상태를 더 안전하게 관리
     private var currentScreenState: ScreenState {
         if showSuccessMessage {
             return .exchangeSuccess

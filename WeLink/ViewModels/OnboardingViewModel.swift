@@ -27,7 +27,6 @@ class OnboardingViewModel: ObservableObject {
     }
     
     func skipOnboarding() {
-        // Skip to final view
         currentStep = totalSteps + 1
     }
     

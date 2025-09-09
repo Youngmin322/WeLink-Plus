@@ -17,11 +17,9 @@ struct FriendsTabView: View {
     @FocusState private var isTextFieldFocused: Bool
     
     private var cards: [CardModel] {
-        // Fallback to original logic if viewModel is not ready
         if let cardViewModel = viewModel.cardViewModel {
             return cardViewModel.filterCards(from: allCards, myIDs: myID, searchText: viewModel.searchText)
         } else {
-            // Original filtering logic
             guard let myUUID = myID.last?.id else {
                 if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     return allCards
@@ -70,11 +68,13 @@ struct FriendsTabView: View {
                             isSearching: $viewModel.isSearching,
                             isTextFieldFocused: $isTextFieldFocused,
                             onToggleSearch: {
+                                let wasSearching = viewModel.isSearching
+                                
                                 withAnimation(AnimationConstants.cardTransition) {
                                     viewModel.toggleSearchMode()
                                 }
                                 
-                                if viewModel.isSearching {
+                                if !wasSearching {
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                         isTextFieldFocused = true
                                     }
@@ -129,7 +129,7 @@ struct FriendsTabView: View {
             }
             
             if !cards.isEmpty {
-                viewModel.preloadImages(for: cards) // ViewModel로 위임
+                viewModel.preloadImages(for: cards)
             }
         }
         .onChange(of: allCards.count) { oldCount, newCount in
@@ -139,7 +139,7 @@ struct FriendsTabView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     if !self.cards.isEmpty {
                         self.viewModel.currentIndex = min(self.viewModel.currentIndex, self.cards.count - 1)
-                        self.viewModel.preloadImages(for: self.cards) // ViewModel로 위임
+                        self.viewModel.preloadImages(for: self.cards)
                     }
                 }
             }
@@ -155,7 +155,7 @@ struct FriendsTabView: View {
                         self.viewModel.currentIndex = min(self.viewModel.currentIndex, newValue.count - 1)
                     }
                 }
-                self.viewModel.preloadImages(for: newValue) // ViewModel로 위임
+                self.viewModel.preloadImages(for: newValue)
             }
         }
         .onChange(of: viewModel.searchText) { _, _ in
@@ -232,7 +232,6 @@ extension FriendsTabView {
 extension FriendsTabView {
     
     private func setupViewModel() {
-        // Initialize cardViewModel when view appears
         if viewModel.cardViewModel == nil {
             viewModel.cardViewModel = CardViewModel(context: modelContext)
         }
@@ -248,12 +247,10 @@ extension FriendsTabView {
         setupViewModel()
         printAllCards(cards: allCards)
         
-        // Use original dummy card insertion logic
         if allCards.isEmpty {
             CardDataService.insertDummyCards(into: modelContext)
         } else {
-            // 현재 화면에 보이는 cards 배열로 preload
-            viewModel.preloadImages(for: cards) // ViewModel로 위임
+            viewModel.preloadImages(for: cards)
         }
     }
 }
