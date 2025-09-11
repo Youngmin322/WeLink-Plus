@@ -8,96 +8,187 @@ struct CustomCalendarView: View {
     var memoDates: Set<Date>
     
     @State private var currentMonth: Date = Date()
+    private let calendar = Calendar.current
     
-    private var days: [Date] {
-        let calendar = Calendar.current
+    // 한국식 요일 (월요일 시작)
+    private var weekdays: [String] {
+        return ["월", "화", "수", "목", "금", "토", "일"]
+    }
+    
+    // 월별 날짜 배열 (월요일 시작으로 조정)
+    private var daysInMonth: [Date] {
         guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth) else { return [] }
         
-        let startDate = monthInterval.start
-        let firstWeekday = calendar.component(.weekday, from: startDate) - 1
+        let firstOfMonth = monthInterval.start
+        let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
+        
+        // 월요일 시작으로 조정 (일요일=1, 월요일=2 -> 월요일=0, 일요일=6)
+        let adjustedFirstWeekday = (firstWeekday + 5) % 7
         
         var days: [Date] = []
-        for _ in 0..<firstWeekday {
-            days.append(Date.distantPast)
+        
+        // 이전 달 날짜들로 첫 주 채우기
+        if adjustedFirstWeekday > 0 {
+            for dayOffset in (1...adjustedFirstWeekday).reversed() {
+                if let previousDate = calendar.date(byAdding: .day, value: -dayOffset, to: firstOfMonth) {
+                    days.append(previousDate)
+                }
+            }
         }
         
-        var day = startDate
-        while day < monthInterval.end {
-            days.append(day)
-            day = calendar.date(byAdding: .day, value: 1, to: day)!
+        // 해당 월의 모든 날짜 추가
+        let numberOfDays = calendar.range(of: .day, in: .month, for: currentMonth)?.count ?? 0
+        
+        for day in 1...numberOfDays {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: firstOfMonth) {
+                days.append(date)
+            }
+        }
+        
+        // 다음 달 날짜들로 마지막 주 채우기 (7의 배수로 맞추기)
+        let remainingCells = 7 - (days.count % 7)
+        if remainingCells < 7 {
+            let lastDayOfMonth = calendar.date(byAdding: .day, value: numberOfDays - 1, to: firstOfMonth) ?? firstOfMonth
+            
+            for dayOffset in 1...remainingCells {
+                if let nextDate = calendar.date(byAdding: .day, value: dayOffset, to: lastDayOfMonth) {
+                    days.append(nextDate)
+                }
+            }
         }
         
         return days
     }
     
     var body: some View {
-        VStack {
-            // 월 이동 헤더
-            HStack {
-                Button(action: { changeMonth(-1) }) {
-                    Image(systemName: "chevron.left")
-                }
-                Spacer()
-                Text(monthTitle)
-                    .font(.headline)
-                
-                Spacer()
-                Button(action: { changeMonth(1) }) {
-                    Image(systemName: "chevron.right")
-                }
+        VStack(spacing: 24) {
+            monthHeader
+            weekdayHeader
+            calendarGrid
+        }
+        .padding(.vertical, 24)
+    }
+    
+    private var monthHeader: some View {
+        HStack(spacing: 0) {
+            Button {
+                changeMonth(-1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .foregroundColor(Color(hex: "#919191"))
+                    .font(.system(size: 16, weight: .medium))
             }
-            .padding(.horizontal)
-            .foregroundColor(Color("MainColor"))
             
-            // 요일 헤더
-            let weekdays = Calendar.current.shortWeekdaySymbols
-            HStack(spacing: 4) {
-                ForEach(weekdays, id: \.self) { day in
-                    Text(day)
-                        .font(.system(size: 10))
-                        .frame(width: 40)
-                        .foregroundColor(.white)
-                }
-            }
-            .padding(.vertical, 4)
+            Spacer()
             
-            // 날짜 그리드
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
-                ForEach(Array(days.enumerated()), id: \.offset) { _, date in
-                    if date == Date.distantPast {
-                        Color.clear.frame(height: 40)
-                    } else {
-                        DayCell(
-                            date: date,
-                            isSelected: Calendar.current.isDate(date, inSameDayAs: selectedDate ?? Date.distantPast),
-                            isToday: Calendar.current.isDate(date, inSameDayAs: Date()),
-                            hasBirthday: hasBirthday(on: date),
-                            hasMemo: memoDates.contains { Calendar.current.isDate($0, inSameDayAs: date) }
-                        )
-                        .onTapGesture {
-                            selectedDate = date
-                        }
-                    }
-                }
+            Text(monthYearFormatter.string(from: currentMonth))
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.white)
+            
+            Spacer()
+            
+            Button {
+                changeMonth(1)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .foregroundColor(Color(hex: "#919191"))
+                    .font(.system(size: 16, weight: .medium))
             }
-            .padding(.horizontal)
+        }
+        .frame(width: 160, height: 25)
+    }
+    
+    private var weekdayHeader: some View {
+        HStack(alignment: .center, spacing: -35) {
+            ForEach(weekdays, id: \.self) { weekday in
+                Spacer()
+                Text(weekday)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundColor(Color(hex: "#919191"))
+                Spacer()
+            }
         }
     }
     
-    private var monthTitle: String {
+    private var calendarGrid: some View {
+        let rowCount = Int(ceil(Double(daysInMonth.count) / 7.0))
+        
+        return VStack(alignment: .center, spacing: 20) {
+            ForEach(0..<rowCount, id: \.self) { week in
+                HStack(alignment: .center, spacing: -35) {
+                    ForEach(0..<7, id: \.self) { day in
+                        Spacer()
+                        let index = week * 7 + day
+                        if index < daysInMonth.count {
+                            dayCell(date: daysInMonth[index])
+                        }
+                        Spacer()
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36, alignment: .center)
+            }
+        }
+    }
+    
+    private func dayCell(date: Date) -> some View {
+        let day = calendar.component(.day, from: date)
+        let isSelected = calendar.isDate(date, inSameDayAs: selectedDate ?? Date.distantPast)
+        let isToday = calendar.isDateInToday(date)
+        let isCurrentMonth = calendar.isDate(date, equalTo: currentMonth, toGranularity: .month)
+        let hasBirthdayOnDate = hasBirthday(on: date)
+        let hasMemoOnDate = memoDates.contains { calendar.isDate($0, inSameDayAs: date) }
+        
+        return Button {
+            selectedDate = date
+        } label: {
+            VStack(spacing: 0) {
+                ZStack {
+                    // 선택 배경 원
+                    Ellipse()
+                        .fill(cellBackgroundColor(isSelected: isSelected, isToday: isToday))
+                        .frame(width: 28, height: 27)
+                    
+                    Text("\(day)")
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundColor(cellTextColor(
+                            for: date,
+                            isSelected: isSelected,
+                            isToday: isToday,
+                            isCurrentMonth: isCurrentMonth,
+                            hasBirthday: hasBirthdayOnDate,
+                            hasMemo: hasMemoOnDate
+                        ))
+                }
+                
+                // 오늘 날짜 표시 (선택되지 않았을 때만)
+                if isToday && isCurrentMonth && !isSelected {
+                    Text("오늘")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(Color("MainColor"))
+                } else {
+                    // 빈 공간 유지
+                    Text("")
+                        .font(.system(size: 9, weight: .medium))
+                        .frame(height: 10)
+                }
+            }
+            .frame(width: 35, height: 36)
+        }
+    }
+    
+    private var monthYearFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy년 M월"
-        return formatter.string(from: currentMonth)
+        formatter.dateFormat = "yyyy년 MM월"
+        return formatter
     }
     
     private func changeMonth(_ value: Int) {
-        if let newMonth = Calendar.current.date(byAdding: .month, value: value, to: currentMonth) {
+        if let newMonth = calendar.date(byAdding: .month, value: value, to: currentMonth) {
             currentMonth = newMonth
         }
     }
     
     private func hasBirthday(on date: Date) -> Bool {
-        let calendar = Calendar.current
         let month = calendar.component(.month, from: date)
         let day = calendar.component(.day, from: date)
         return cards.contains {
@@ -106,9 +197,51 @@ struct CustomCalendarView: View {
                    calendar.component(.day, from: bd) == day
         }
     }
+    
+    // 날짜 셀의 텍스트 색상 결정
+    private func cellTextColor(
+        for date: Date,
+        isSelected: Bool,
+        isToday: Bool,
+        isCurrentMonth: Bool,
+        hasBirthday: Bool,
+        hasMemo: Bool
+    ) -> Color {
+        // 선택된 날짜는 흰색
+        if isSelected {
+            return .white
+        }
+        
+        // 현재 월이 아닌 날짜는 회색 투명
+        if !isCurrentMonth {
+            return Color(hex: "#919191").opacity(0.3)
+        }
+        
+        // 오늘 날짜는 메인 컬러
+        if isToday {
+            return Color("MainColor")
+        }
+        
+        // 생일이나 메모가 있는 날짜는 흰색
+        if hasBirthday || hasMemo {
+            return .white
+        }
+        
+        // 기본 색상은 회색
+        return Color(hex: "#919191")
+    }
+    
+    // 날짜 셀의 배경 색상 결정
+    private func cellBackgroundColor(isSelected: Bool, isToday: Bool) -> Color {
+        if isSelected {
+            return .black.opacity(0.6)
+        }
+        
+        return .clear
+    }
 }
 
-// MARK: - DayCell
+// MARK: - DayCell (기존 코드와 호환성을 위해 유지하지만 사용하지 않음)
 struct DayCell: View {
     var date: Date
     var isSelected: Bool
@@ -160,7 +293,35 @@ struct DayCell: View {
     }
 }
 
-// MARK: - MemoSheetView
+// MARK: - Color Extension
+//extension Color {
+//    init(hex: String) {
+//        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+//        var int: UInt64 = 0
+//        Scanner(string: hex).scanHexInt64(&int)
+//        let a, r, g, b: UInt64
+//        switch hex.count {
+//        case 3: // RGB (12-bit)
+//            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+//        case 6: // RGB (24-bit)
+//            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+//        case 8: // ARGB (32-bit)
+//            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+//        default:
+//            (a, r, g, b) = (1, 1, 1, 0)
+//        }
+//
+//        self.init(
+//            .sRGB,
+//            red: Double(r) / 255,
+//            green: Double(g) / 255,
+//            blue:  Double(b) / 255,
+//            opacity: Double(a) / 255
+//        )
+//    }
+//}
+
+// MARK: - MemoSheetView (기존 코드 유지)
 struct MemoSheetView: View {
     @Binding var isPresented: Bool
     @Binding var selectedDate: Date
@@ -270,9 +431,9 @@ struct MemoSheetView: View {
     }
 }
 
-// MARK: - MenuTabView
+// MARK: - MenuTabView (메인 화면 유지)
 struct MenuTabView: View {
-    @State private var selectedDate: Date? = Date()  // 여기 기본값으로 오늘 날짜 지정
+    @State private var selectedDate: Date? = Date()
     @State private var memoText: String = ""
     @State private var isMemoSheetPresented: Bool = false
     @State private var selectedWriter: String = "Karina"
@@ -315,7 +476,6 @@ struct MenuTabView: View {
                         Spacer()
                         
                         Button {
-                            // selectedDate가 nil일 경우 오늘 날짜로 지정
                             if selectedDate == nil {
                                 selectedDate = Date()
                             }
@@ -355,11 +515,10 @@ struct MenuTabView: View {
                     }
                     .padding(.horizontal)
                     
+                    // 새로운 캘린더 디자인 적용
                     RoundedRectangle(cornerRadius: 20)
-//                        .fill(Color("CategoryColor").opacity(0.5))
                         .fill(.ultraThinMaterial)
                         .environment(\.colorScheme, .dark)
-//                        .shadow(radius: 6)
                         .overlay(
                             CustomCalendarView(selectedDate: $selectedDate, cards: cards, memoDates: memoDates)
                                 .padding()
