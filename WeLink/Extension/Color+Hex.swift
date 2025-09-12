@@ -27,4 +27,6 @@ extension Color {
             opacity: 1
         )
     }
+    
+    static let pointColorPurple = Color(hex: "#8B5CF6")
 }

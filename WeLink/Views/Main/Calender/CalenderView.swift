@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - CustomCalendarView
 struct CustomCalendarView: View {
     @Binding var selectedDate: Date?
     var cards: [CardModel]
@@ -10,24 +9,20 @@ struct CustomCalendarView: View {
     @State private var currentMonth: Date = Date()
     private let calendar = Calendar.current
     
-    // 한국식 요일 (월요일 시작)
     private var weekdays: [String] {
         return ["월", "화", "수", "목", "금", "토", "일"]
     }
     
-    // 월별 날짜 배열 (월요일 시작으로 조정)
     private var daysInMonth: [Date] {
         guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth) else { return [] }
         
         let firstOfMonth = monthInterval.start
         let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
-        
-        // 월요일 시작으로 조정 (일요일=1, 월요일=2 -> 월요일=0, 일요일=6)
         let adjustedFirstWeekday = (firstWeekday + 5) % 7
         
         var days: [Date] = []
         
-        // 이전 달 날짜들로 첫 주 채우기
+        // 이전 달 날짜들
         if adjustedFirstWeekday > 0 {
             for dayOffset in (1...adjustedFirstWeekday).reversed() {
                 if let previousDate = calendar.date(byAdding: .day, value: -dayOffset, to: firstOfMonth) {
@@ -36,20 +31,18 @@ struct CustomCalendarView: View {
             }
         }
         
-        // 해당 월의 모든 날짜 추가
+        // 현재 달 날짜들
         let numberOfDays = calendar.range(of: .day, in: .month, for: currentMonth)?.count ?? 0
-        
         for day in 1...numberOfDays {
             if let date = calendar.date(byAdding: .day, value: day - 1, to: firstOfMonth) {
                 days.append(date)
             }
         }
         
-        // 다음 달 날짜들로 마지막 주 채우기 (7의 배수로 맞추기)
+        // 다음 달 날짜들
         let remainingCells = 7 - (days.count % 7)
         if remainingCells < 7 {
             let lastDayOfMonth = calendar.date(byAdding: .day, value: numberOfDays - 1, to: firstOfMonth) ?? firstOfMonth
-            
             for dayOffset in 1...remainingCells {
                 if let nextDate = calendar.date(byAdding: .day, value: dayOffset, to: lastDayOfMonth) {
                     days.append(nextDate)
@@ -61,28 +54,32 @@ struct CustomCalendarView: View {
     }
     
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             monthHeader
             weekdayHeader
             calendarGrid
         }
+        .padding(.horizontal, 20)
         .padding(.vertical, 24)
     }
     
     private var monthHeader: some View {
-        HStack(spacing: 0) {
+        HStack {
             Button {
                 changeMonth(-1)
             } label: {
                 Image(systemName: "chevron.left")
-                    .foregroundColor(Color(hex: "#919191"))
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.white.opacity(0.8))
+                    .frame(width: 44, height: 44)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Circle())
             }
             
             Spacer()
             
             Text(monthYearFormatter.string(from: currentMonth))
-                .font(.system(size: 18, weight: .bold))
+                .font(.system(size: 20, weight: .bold))
                 .foregroundColor(.white)
             
             Spacer()
@@ -91,41 +88,33 @@ struct CustomCalendarView: View {
                 changeMonth(1)
             } label: {
                 Image(systemName: "chevron.right")
-                    .foregroundColor(Color(hex: "#919191"))
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.white.opacity(0.8))
+                    .frame(width: 44, height: 44)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Circle())
             }
         }
-        .frame(width: 160, height: 25)
     }
     
     private var weekdayHeader: some View {
-        HStack(alignment: .center, spacing: -35) {
+        HStack {
             ForEach(weekdays, id: \.self) { weekday in
-                Spacer()
                 Text(weekday)
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(Color(hex: "#919191"))
-                Spacer()
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.7))
+                    .frame(maxWidth: .infinity)
             }
         }
+        .padding(.horizontal, 4)
     }
     
     private var calendarGrid: some View {
-        let rowCount = Int(ceil(Double(daysInMonth.count) / 7.0))
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
         
-        return VStack(alignment: .center, spacing: 20) {
-            ForEach(0..<rowCount, id: \.self) { week in
-                HStack(alignment: .center, spacing: -35) {
-                    ForEach(0..<7, id: \.self) { day in
-                        Spacer()
-                        let index = week * 7 + day
-                        if index < daysInMonth.count {
-                            dayCell(date: daysInMonth[index])
-                        }
-                        Spacer()
-                    }
-                }
-                .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36, alignment: .center)
+        return LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(daysInMonth, id: \.self) { date in
+                dayCell(date: date)
             }
         }
     }
@@ -141,39 +130,54 @@ struct CustomCalendarView: View {
         return Button {
             selectedDate = date
         } label: {
-            VStack(spacing: 0) {
-                ZStack {
-                    // 선택 배경 원
-                    Ellipse()
-                        .fill(cellBackgroundColor(isSelected: isSelected, isToday: isToday))
-                        .frame(width: 28, height: 27)
-                    
+            ZStack {
+                // 배경 원
+                Circle()
+                    .fill(cellBackgroundColor(
+                        isSelected: isSelected,
+                        isToday: isToday,
+                        hasBirthday: hasBirthdayOnDate,
+                        hasMemo: hasMemoOnDate
+                    ))
+                    .frame(width: 40, height: 40)
+                
+                // 테두리 (선택된 경우)
+                if isSelected {
+                    Circle()
+                        .stroke(Color("MainColor"), lineWidth: 2)
+                        .frame(width: 40, height: 40)
+                }
+                
+                VStack(spacing: 2) {
                     Text("\(day)")
-                        .font(.system(size: 12, weight: .regular))
+                        .font(.system(size: 16, weight: isToday ? .bold : .medium))
                         .foregroundColor(cellTextColor(
-                            for: date,
                             isSelected: isSelected,
                             isToday: isToday,
                             isCurrentMonth: isCurrentMonth,
                             hasBirthday: hasBirthdayOnDate,
                             hasMemo: hasMemoOnDate
                         ))
-                }
-                
-                // 오늘 날짜 표시 (선택되지 않았을 때만)
-                if isToday && isCurrentMonth && !isSelected {
-                    Text("오늘")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(Color("MainColor"))
-                } else {
-                    // 빈 공간 유지
-                    Text("")
-                        .font(.system(size: 9, weight: .medium))
-                        .frame(height: 10)
+                    
+                    // 표시 점들
+                    HStack(spacing: 2) {
+                        if hasBirthdayOnDate {
+                            Circle()
+                                .fill(Color("MainColor"))
+                                .frame(width: 4, height: 4)
+                        }
+                        if hasMemoOnDate {
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 4, height: 4)
+                        }
+                    }
+                    .frame(height: 6)
                 }
             }
-            .frame(width: 35, height: 36)
+            .frame(width: 44, height: 44)
         }
+        .disabled(!isCurrentMonth)
     }
     
     private var monthYearFormatter: DateFormatter {
@@ -183,8 +187,10 @@ struct CustomCalendarView: View {
     }
     
     private func changeMonth(_ value: Int) {
-        if let newMonth = calendar.date(byAdding: .month, value: value, to: currentMonth) {
-            currentMonth = newMonth
+        withAnimation(.easeInOut(duration: 0.3)) {
+            if let newMonth = calendar.date(byAdding: .month, value: value, to: currentMonth) {
+                currentMonth = newMonth
+            }
         }
     }
     
@@ -198,130 +204,59 @@ struct CustomCalendarView: View {
         }
     }
     
-    // 날짜 셀의 텍스트 색상 결정
     private func cellTextColor(
-        for date: Date,
         isSelected: Bool,
         isToday: Bool,
         isCurrentMonth: Bool,
         hasBirthday: Bool,
         hasMemo: Bool
     ) -> Color {
-        // 선택된 날짜는 흰색
+        if !isCurrentMonth {
+            return .clear
+        }
+        
         if isSelected {
             return .white
         }
         
-        // 현재 월이 아닌 날짜는 회색 투명
-        if !isCurrentMonth {
-            return Color(hex: "#919191").opacity(0.3)
-        }
-        
-        // 오늘 날짜는 메인 컬러
         if isToday {
             return Color("MainColor")
         }
         
-        // 생일이나 메모가 있는 날짜는 흰색
         if hasBirthday || hasMemo {
             return .white
         }
         
-        // 기본 색상은 회색
-        return Color(hex: "#919191")
+        return .white.opacity(0.8)
     }
     
-    // 날짜 셀의 배경 색상 결정
-    private func cellBackgroundColor(isSelected: Bool, isToday: Bool) -> Color {
+    private func cellBackgroundColor(
+        isSelected: Bool,
+        isToday: Bool,
+        hasBirthday: Bool,
+        hasMemo: Bool
+    ) -> Color {
         if isSelected {
-            return .black.opacity(0.6)
+            return Color("MainColor").opacity(0.8)
         }
         
-        return .clear
-    }
-}
-
-// MARK: - DayCell (기존 코드와 호환성을 위해 유지하지만 사용하지 않음)
-struct DayCell: View {
-    var date: Date
-    var isSelected: Bool
-    var isToday: Bool
-    var hasBirthday: Bool
-    var hasMemo: Bool
-    
-    @State private var animateScale: Bool = false
-    
-    var body: some View {
-        ZStack {
-            if hasMemo {
-                Circle()
-                    .fill(Color("MainColor").opacity(0.2))
-                    .frame(width: 42, height: 42)
-            }
-            
-            if isSelected {
-                Circle()
-                    .stroke(Color("MainColor"), lineWidth: 2)
-                    .frame(width: 42, height: 42)
-                    .scaleEffect(animateScale ? 1.1 : 1.0)
-                    .onAppear {
-                        animateScale = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                            animateScale = false
-                        }
-                    }
-            }
-            
-            VStack(spacing: 0) {
-                Text("\(Calendar.current.component(.day, from: date))")
-                    .foregroundColor(hasBirthday ? Color("MainColor") : .white)
-                    .fontWeight(isToday ? .bold : .regular)
-                    .frame(height: 20)
-                
-                if isToday {
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 5, height: 5)
-                        .padding(.top, 4)
-                } else {
-                    Spacer().frame(height: 9)
-                }
-            }
-            .frame(height: 42)
+        if isToday {
+            return Color.white.opacity(0.2)
         }
-        .frame(height: 42)
+        
+        if hasBirthday {
+            return Color("MainColor").opacity(0.3)
+        }
+        
+        if hasMemo {
+            return Color.blue.opacity(0.3)
+        }
+        
+        return Color.clear
     }
 }
 
-// MARK: - Color Extension
-//extension Color {
-//    init(hex: String) {
-//        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-//        var int: UInt64 = 0
-//        Scanner(string: hex).scanHexInt64(&int)
-//        let a, r, g, b: UInt64
-//        switch hex.count {
-//        case 3: // RGB (12-bit)
-//            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-//        case 6: // RGB (24-bit)
-//            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-//        case 8: // ARGB (32-bit)
-//            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-//        default:
-//            (a, r, g, b) = (1, 1, 1, 0)
-//        }
-//
-//        self.init(
-//            .sRGB,
-//            red: Double(r) / 255,
-//            green: Double(g) / 255,
-//            blue:  Double(b) / 255,
-//            opacity: Double(a) / 255
-//        )
-//    }
-//}
-
-// MARK: - MemoSheetView (기존 코드 유지)
+// MARK: - MemoSheetView (개선된 버전)
 struct MemoSheetView: View {
     @Binding var isPresented: Bool
     @Binding var selectedDate: Date
@@ -334,91 +269,135 @@ struct MemoSheetView: View {
     @State private var day: Int = Calendar.current.component(.day, from: Date())
     
     var body: some View {
-        VStack(spacing: 16) {
-            Capsule()
-                .frame(width: 40, height: 5)
-                .foregroundColor(Color.gray.opacity(0.5))
-                .padding(.top, 12)
-            
-            Text("메모 작성")
-                .font(.headline)
-                .foregroundColor(Color("MainColor"))
-                .padding(.bottom, 4)
-            
-            HStack(spacing: 50) {
-                VStack {
-                    Text("월")
-                        .foregroundColor(.secondary)
-                    Picker("월", selection: $month) {
-                        ForEach(1...12, id: \.self) { m in
-                            Text("\(m)월").tag(m)
-                        }
-                    }
-                    .pickerStyle(WheelPickerStyle())
-                    .frame(width: 80, height: 120)
-                }
+        NavigationView {
+            VStack(spacing: 24) {
+                // 핸들 바
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(width: 40, height: 6)
+                    .padding(.top, 12)
                 
-                VStack {
-                    Text("일")
-                        .foregroundColor(.secondary)
-                    Picker("일", selection: $day) {
-                        ForEach(1...31, id: \.self) { d in
-                            Text("\(d)일").tag(d)
+                VStack(spacing: 20) {
+                    // 제목
+                    Text("메모 작성")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                    
+                    // 날짜 선택
+                    VStack(spacing: 12) {
+                        Text("날짜 선택")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        HStack(spacing: 40) {
+                            VStack(spacing: 8) {
+                                Text("월")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Picker("월", selection: $month) {
+                                    ForEach(1...12, id: \.self) { m in
+                                        Text("\(m)").tag(m)
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                .frame(width: 80, height: 100)
+                                .clipped()
+                            }
+                            
+                            VStack(spacing: 8) {
+                                Text("일")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Picker("일", selection: $day) {
+                                    ForEach(1...31, id: \.self) { d in
+                                        Text("\(d)").tag(d)
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                .frame(width: 80, height: 100)
+                                .clipped()
+                            }
                         }
                     }
-                    .pickerStyle(WheelPickerStyle())
-                    .frame(width: 80, height: 120)
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    
+                    // 작성자 선택
+                    VStack(spacing: 12) {
+                        Text("작성자")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        Menu {
+                            ForEach(writers, id: \.self) { writer in
+                                Button(writer) {
+                                    selectedWriter = writer
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(selectedWriter)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                        }
+                    }
+                    
+                    // 메모 입력
+                    VStack(spacing: 12) {
+                        Text("메모 내용")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        TextEditor(text: $memoText)
+                            .padding(12)
+                            .frame(height: 120)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                            )
+                    }
+                    
+                    Spacer()
+                    
+                    // 저장 버튼
+                    Button {
+                        isPresented = false
+                    } label: {
+                        Text("저장하기")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color("MainColor"))
+                            .cornerRadius(12)
+                    }
                 }
+                .padding(.horizontal, 20)
             }
+            .navigationBarHidden(true)
             .onAppear {
                 let comps = Calendar.current.dateComponents([.month, .day], from: selectedDate)
                 month = comps.month ?? month
                 day = comps.day ?? day
             }
-            .onChange(of: month) { oldValue, newValue in
-                updateSelectedDate()
-            }
-            .onChange(of: day) { oldValue, newValue in
-                updateSelectedDate()
-            }
-            
-            VStack(alignment: .leading) {
-                Text("작성자")
-                    .foregroundColor(.secondary)
-                Picker("작성자", selection: $selectedWriter) {
-                    ForEach(writers, id: \.self) { name in
-                        Text(name).tag(name)
-                    }
-                }
-                .pickerStyle(MenuPickerStyle())
-                .accentColor(Color("MainColor"))
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            
-            TextEditor(text: $memoText)
-                .frame(height: 120)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color("MainColor"), lineWidth: 1)
-                )
-            
-            Button {
-                isPresented = false
-            } label: {
-                Text("저장")
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color("MainColor"))
-                    .cornerRadius(10)
-            }
-            
-            Spacer()
+            .onChange(of: month) { _, _ in updateSelectedDate() }
+            .onChange(of: day) { _, _ in updateSelectedDate() }
         }
-        .padding()
-        .cornerRadius(20)
-        .preferredColorScheme(.dark)
-        .presentationDetents([.fraction(0.7)])
+        .presentationDetents([.fraction(0.75)])
+        .presentationDragIndicator(.hidden)
     }
     
     private func updateSelectedDate() {
@@ -431,7 +410,7 @@ struct MemoSheetView: View {
     }
 }
 
-// MARK: - MenuTabView (메인 화면 유지)
+// MARK: - MenuTabView (개선된 버전)
 struct MenuTabView: View {
     @State private var selectedDate: Date? = Date()
     @State private var memoText: String = ""
@@ -464,14 +443,20 @@ struct MenuTabView: View {
                 Color("BackgroundColor")
                     .ignoresSafeArea()
                 
-                VStack(spacing: 20) {
+                VStack(spacing: 24) {
+                    // 헤더
                     HStack {
-                        Text("공유 캘린더")
-                            .font(.system(size: 35, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, 16)
-                            .padding(.leading, 11)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("공유 캘린더")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundColor(.white)
+                            
+                            if let date = selectedDate {
+                                Text(DateFormatter.selectedDateFormatter.string(from: date))
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                        }
                         
                         Spacer()
                         
@@ -483,136 +468,152 @@ struct MenuTabView: View {
                             selectedWriter = "Karina"
                             isMemoSheetPresented = true
                         } label: {
-                            Image(systemName: "square.and.pencil")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.white.opacity(0.8))
+                            Image(systemName: "plus")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.white)
+                                .frame(width: 44, height: 44)
+                                .background(Color("MainColor").opacity(0.8))
+                                .clipShape(Circle())
+                                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
                         }
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 14)
-                        .background(
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 40, height: 40)
-                                .environment(\.colorScheme, .dark)
-                        )
-                        .overlay(
-                            Circle()
-                                .strokeBorder(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(0.3),
-                                            Color.white.opacity(0.1)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                                .frame(width: 40, height: 40)
-                        )
-                        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                        .padding(.top, 18)
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
                     
-                    // 새로운 캘린더 디자인 적용
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(.ultraThinMaterial)
-                        .environment(\.colorScheme, .dark)
-                        .overlay(
-                            CustomCalendarView(selectedDate: $selectedDate, cards: cards, memoDates: memoDates)
-                                .padding()
+                    // 캘린더
+                    VStack {
+                        CustomCalendarView(
+                            selectedDate: $selectedDate,
+                            cards: cards,
+                            memoDates: memoDates
                         )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .strokeBorder(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(0.3),
-                                            Color.white.opacity(0.1)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                        .frame(width: UIScreen.main.bounds.width * 0.88, height: 400)
-
-                    if let date = selectedDate {
-                        if birthdayCardsForSelectedDate.isEmpty && (memoStore.memos[date]?.isEmpty ?? true) {
-                            VStack {
-                                Image(systemName: "person.crop.circle.badge.xmark")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(Color("MainColor").opacity(0.8))
-                                Text("생일인 친구가 없습니다.")
-                                    .multilineTextAlignment(.center)
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .font(.headline)
-                                    .padding(.top, 5)
-                            }
-                            .padding(.top, 30)
-                        } else {
-                            ScrollView {
-                                VStack(alignment: .leading, spacing: 12) {
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(.ultraThinMaterial)
+                            .environment(\.colorScheme, .dark)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 16)
+                    
+                    // 하단 정보
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            if let date = selectedDate {
+                                if !birthdayCardsForSelectedDate.isEmpty || !(memoStore.memos[date]?.isEmpty ?? true) {
+                                    // 생일 정보
                                     if !birthdayCardsForSelectedDate.isEmpty {
-                                        Text("오늘 생일인 친구")
-                                            .font(.headline)
-                                            .foregroundColor(Color("MainColor"))
-                                        ForEach(birthdayCardsForSelectedDate, id: \.id) { card in
+                                        VStack(alignment: .leading, spacing: 12) {
                                             HStack {
-                                                Text(card.name)
-                                                    .fontWeight(.semibold)
+                                                Image(systemName: "gift.fill")
+                                                    .foregroundColor(Color("MainColor"))
+                                                Text("오늘 생일인 친구")
+                                                    .font(.headline)
+                                                    .fontWeight(.bold)
                                                     .foregroundColor(.white)
-                                                Spacer()
-                                                Text(card.birthDate)
-                                                    .foregroundColor(.white)
-                                                    .font(.subheadline)
                                             }
-                                            .shadow(radius: 2)
+                                            
+                                            ForEach(birthdayCardsForSelectedDate, id: \.id) { card in
+                                                HStack {
+                                                    Circle()
+                                                        .fill(Color("MainColor"))
+                                                        .frame(width: 8, height: 8)
+                                                    
+                                                    Text(card.name)
+                                                        .fontWeight(.medium)
+                                                        .foregroundColor(.white)
+                                                    
+                                                    Spacer()
+                                                    
+                                                    Text(card.birthDate)
+                                                        .font(.caption)
+                                                        .foregroundColor(.white.opacity(0.7))
+                                                }
+                                                .padding(.horizontal, 16)
+                                                .padding(.vertical, 12)
+                                                .background(Color.white.opacity(0.1))
+                                                .cornerRadius(12)
+                                            }
                                         }
                                     }
                                     
+                                    // 메모 정보
                                     if let memoList = memoStore.memos[date], !memoList.isEmpty {
-                                        Divider()
-                                            .padding(.vertical, 8)
-                                        Text("공유 메모")
-                                            .font(.headline)
-                                            .foregroundColor(Color("MainColor"))
-                                        ForEach(Array(memoList.enumerated()), id: \.offset) { _, memo in
-                                            VStack(alignment: .leading) {
-                                                Text(memo.text)
-                                                    .foregroundColor(.black)
-                                                    .padding(8)
-                                                    .background(Color("MainColor").opacity(0.8))
-                                                    .cornerRadius(10)
-                                                
-                                                Text("작성자: \(memo.writer)")
-                                                    .foregroundColor(Color("MainColor").opacity(0.8))
-                                                    .font(.footnote)
-                                                    .padding(.bottom, 4)
+                                        VStack(alignment: .leading, spacing: 12) {
+                                            HStack {
+                                                Image(systemName: "note.text")
+                                                    .foregroundColor(.blue)
+                                                Text("공유 메모")
+                                                    .font(.headline)
+                                                    .fontWeight(.bold)
+                                                    .foregroundColor(.white)
+                                            }
+                                            
+                                            ForEach(Array(memoList.enumerated()), id: \.offset) { _, memo in
+                                                VStack(alignment: .leading, spacing: 8) {
+                                                    Text(memo.text)
+                                                        .foregroundColor(.white)
+                                                        .lineLimit(nil)
+                                                    
+                                                    Text("- \(memo.writer)")
+                                                        .font(.caption)
+                                                        .foregroundColor(.blue.opacity(0.8))
+                                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                                }
+                                                .padding(16)
+                                                .background(Color.white.opacity(0.1))
+                                                .cornerRadius(12)
                                             }
                                         }
                                     }
+                                } else {
+                                    // 빈 상태
+                                    VStack(spacing: 16) {
+                                        Image(systemName: "calendar.badge.plus")
+                                            .font(.system(size: 48))
+                                            .foregroundColor(.white.opacity(0.6))
+                                        
+                                        Text("선택한 날짜에\n일정이 없습니다")
+                                            .multilineTextAlignment(.center)
+                                            .foregroundColor(.white.opacity(0.8))
+                                            .font(.headline)
+                                        
+                                        Button {
+                                            memoText = ""
+                                            selectedWriter = "Karina"
+                                            isMemoSheetPresented = true
+                                        } label: {
+                                            Text("메모 추가하기")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                                .foregroundColor(Color("MainColor"))
+                                                .padding(.horizontal, 20)
+                                                .padding(.vertical, 10)
+                                                .background(Color.white.opacity(0.1))
+                                                .cornerRadius(20)
+                                        }
+                                    }
+                                    .padding(.top, 20)
                                 }
-                                .padding(.horizontal)
+                            } else {
+                                VStack(spacing: 16) {
+                                    Image(systemName: "calendar")
+                                        .font(.system(size: 48))
+                                        .foregroundColor(.white.opacity(0.6))
+                                    
+                                    Text("날짜를 선택해주세요")
+                                        .foregroundColor(.white.opacity(0.8))
+                                        .font(.headline)
+                                }
+                                .padding(.top, 20)
                             }
-                            .frame(maxHeight: 200)
                         }
-                    } else {
-                        VStack {
-                            Image(systemName: "calendar")
-                                .font(.system(size: 40))
-                                .foregroundColor(Color("MainColor").opacity(0.8))
-                            Text("날짜를 선택해주세요")
-                                .foregroundColor(.white.opacity(0.9))
-                                .font(.headline)
-                                .padding(.top, 5)
-                        }
-                        .padding(.top, 30)
+                        .padding(.horizontal, 20)
                     }
-                    
-                    Spacer()
+                    .frame(maxHeight: 280)
                 }
                 .sheet(isPresented: $isMemoSheetPresented) {
                     if let date = selectedDate {
@@ -620,9 +621,8 @@ struct MenuTabView: View {
                             isPresented: $isMemoSheetPresented,
                             selectedDate: Binding(
                                 get: { date },
-                                set: { newDate in
-                                    selectedDate = newDate
-                                }),
+                                set: { newDate in selectedDate = newDate }
+                            ),
                             memoText: $memoText,
                             selectedWriter: $selectedWriter
                         )
@@ -638,5 +638,16 @@ struct MenuTabView: View {
                 }
             }
         }
+        .navigationViewStyle(StackNavigationViewStyle())
     }
+}
+
+// MARK: - Extensions
+extension DateFormatter {
+    static let selectedDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M월 d일 EEEE"
+        formatter.locale = Locale(identifier: "ko_KR")
+        return formatter
+    }()
 }
