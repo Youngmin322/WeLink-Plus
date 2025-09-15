@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-struct CustomCalendarView: View {
+struct CalendarView: View {
     @Binding var selectedDate: Date?
     var cards: [CardModel]
     var memoDates: Set<Date>
@@ -482,7 +482,7 @@ struct MenuTabView: View {
                     
                     // 캘린더
                     VStack {
-                        CustomCalendarView(
+                        CalendarView(
                             selectedDate: $selectedDate,
                             cards: cards,
                             memoDates: memoDates
