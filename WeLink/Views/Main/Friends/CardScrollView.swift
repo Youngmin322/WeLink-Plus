@@ -1,8 +1,6 @@
 //
-//  CardScrollView.swift
+//  CardScrollView.swift (제스처 충돌 해결)
 //  WeLink
-//
-//  Created by 조영민 on 8/8/25.
 //
 
 import SwiftUI
@@ -15,7 +13,6 @@ struct CardScrollView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showingDeleteAlert = false
     @State private var cardToDelete: CardModel? = nil
-    @State private var isAnyCardDragging = false
     
     private var safeCurrentIndex: Int {
         cards.safeIndex(currentIndex)
@@ -47,7 +44,7 @@ struct CardScrollView: View {
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: spacing) {
                         ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
-                            SwipeableCardView(
+                            CardView(
                                 card: card,
                                 isSelected: index == safeCurrentIndex,
                                 onTap: {
@@ -56,9 +53,6 @@ struct CardScrollView: View {
                                 onDelete: {
                                     cardToDelete = card
                                     showingDeleteAlert = true
-                                },
-                                onDragStateChanged: { isDragging in
-                                    isAnyCardDragging = isDragging
                                 }
                             )
                             .frame(width: cardWidth, height: cardHeight)
@@ -71,7 +65,6 @@ struct CardScrollView: View {
                 .scrollIndicators(.hidden)
                 .scrollTargetBehavior(.viewAligned)
                 .scrollPosition(id: $scrollPosition)
-                .scrollDisabled(isAnyCardDragging)
                 .clipShape(Rectangle())
                 .clipped(antialiased: false)
                 .onChange(of: scrollPosition) { _, newPosition in
@@ -190,20 +183,21 @@ struct CardScrollView: View {
     }
 }
 
-// MARK: - SwipeableCardView
-struct SwipeableCardView: View {
+// MARK: - CardView (Long Press + Drag 방식)
+struct CardView: View {
     let card: CardModel
     let isSelected: Bool
     let onTap: () -> Void
     let onDelete: () -> Void
-    let onDragStateChanged: (Bool) -> Void
     
-    @State private var verticalOffset: CGFloat = 0
-    @State private var isDragging = false
+    @State private var dragOffset: CGFloat = 0
     @State private var showDeleteButton = false
+    @State private var isInDeleteMode = false
+    @State private var longPressActivated = false
     
-    private let deleteThreshold: CGFloat = -200
-    private let showDeleteButtonThreshold: CGFloat = -60
+    private let showDeleteThreshold: CGFloat = -60
+    private let maxDragUp: CGFloat = -300
+    private let maxDragDown: CGFloat = 50
     
     var body: some View {
         ZStack {
@@ -211,42 +205,64 @@ struct SwipeableCardView: View {
                 deleteButtonView
             }
             
-            cardView
+            cardContent
         }
-        .contentShape(Rectangle())
-        .simultaneousGesture(dragGesture)
         .onTapGesture {
-            handleTap()
+            if !isInDeleteMode {
+                onTap()
+            }
         }
+        .onLongPressGesture(minimumDuration: 0.5) {
+            // 롱 프레스 시 삭제 모드 활성화
+            activateDeleteMode()
+        }
+        .gesture(
+            // 삭제 모드일 때만 드래그 제스처 활성화
+            isInDeleteMode ?
+            DragGesture(coordinateSpace: .local)
+                .onChanged(handleDragChanged)
+                .onEnded(handleDragEnded)
+            : nil
+        )
     }
     
-    // MARK: - Private Views
     private var deleteButtonView: some View {
-        Button(action: onDelete) {
-            ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.8)
-                    .environment(\.colorScheme, .dark)
-                    .frame(width: 65, height: 65)
-                    .overlay(
-                        Circle()
-                            .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
-                    )
-                
-                Image(systemName: "trash")
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundColor(.red)
+        VStack(spacing: 15) {
+            Button(action: onDelete) {
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .opacity(0.9)
+                        .environment(\.colorScheme, .dark)
+                        .frame(width: 60, height: 60)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(Color.red.opacity(0.5), lineWidth: 2)
+                        )
+                    
+                    Image(systemName: "trash")
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundColor(.red)
+                }
             }
-            .shadow(color: .black.opacity(0.5), radius: 10, x: 0, y: 5)
+            
+            Button("취소") {
+                exitDeleteMode()
+            }
+            .font(.system(size: 16, weight: .medium))
+            .foregroundColor(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: Capsule())
+            .environment(\.colorScheme, .dark)
         }
-        .offset(y: 100)
+        .offset(y: 120)
         .scaleEffect(showDeleteButton ? 1.0 : 0.0)
         .opacity(showDeleteButton ? 1.0 : 0.0)
-        .animation(AnimationConstants.deleteButton, value: showDeleteButton)
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showDeleteButton)
     }
     
-    private var cardView: some View {
+    private var cardContent: some View {
         MyProfileCardOnlyView(card: card)
             .scaleEffect(isSelected ? 1.0 : 0.85)
             .opacity(isSelected ? 1.0 : 0.7)
@@ -256,70 +272,85 @@ struct SwipeableCardView: View {
                 x: 0,
                 y: isSelected ? 8 : 4
             )
-            .offset(x: 0, y: min(max(verticalOffset, -300), 50))
-            .scaleEffect(isDragging ? 0.95 : 1.0)
-            .animation(AnimationConstants.cardTransition, value: isSelected)
-            .animation(AnimationConstants.indexChange, value: isDragging)
+            .offset(y: dragOffset)
+            .scaleEffect(isInDeleteMode ? 0.95 : 1.0)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color.red.opacity(0.6), lineWidth: isInDeleteMode ? 2 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: isInDeleteMode)
+            )
+            .animation(.easeInOut(duration: 0.2), value: isSelected)
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isInDeleteMode)
     }
     
-    // MARK: - Private Gestures & Methods
-    private var dragGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                handleDragChanged(value)
-            }
-            .onEnded { value in
-                handleDragEnded(value)
-            }
-    }
-    
-    private func handleDragChanged(_ value: DragGesture.Value) {
-        let verticalMovement = abs(value.translation.height)
-        let horizontalMovement = abs(value.translation.width)
+    // MARK: - 삭제 모드 관리
+    private func activateDeleteMode() {
+        guard !isInDeleteMode else { return }
         
-        if verticalMovement > horizontalMovement * 2 &&
-            (value.translation.height < -10 || (showDeleteButton && value.translation.height > -150)) &&
-            verticalMovement > 20 {
-            
-            if !isDragging {
-                isDragging = true
-                onDragStateChanged(true)
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            isInDeleteMode = true
+            longPressActivated = true
+            // 진동 피드백
+            let impact = UIImpactFeedbackGenerator(style: .medium)
+            impact.impactOccurred()
+        }
+        
+        // 3초 후 자동으로 삭제 모드 해제
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            if isInDeleteMode && !showDeleteButton {
+                exitDeleteMode()
             }
-            
-            let limitedOffset = min(max(value.translation.height, -300), 50)
-            verticalOffset = limitedOffset
-            
-            withAnimation(AnimationConstants.indexChange) {
-                showDeleteButton = value.translation.height < showDeleteButtonThreshold
+        }
+    }
+    
+    private func exitDeleteMode() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            isInDeleteMode = false
+            showDeleteButton = false
+            dragOffset = 0
+            longPressActivated = false
+        }
+    }
+    
+    // MARK: - 드래그 제스처 (삭제 모드에서만 활성화)
+    private func handleDragChanged(_ value: DragGesture.Value) {
+        guard isInDeleteMode else { return }
+        
+        let translation = value.translation.height
+        let newOffset = min(max(translation, maxDragUp), maxDragDown)
+        dragOffset = newOffset
+        
+        let shouldShowDelete = translation < showDeleteThreshold
+        if shouldShowDelete != showDeleteButton {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                showDeleteButton = shouldShowDelete
             }
         }
     }
     
     private func handleDragEnded(_ value: DragGesture.Value) {
-        withAnimation(AnimationConstants.dragResponse) {
+        guard isInDeleteMode else { return }
+        
+        let finalTranslation = value.translation.height
+        
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             if showDeleteButton {
-                if value.translation.height > 40 {
-                    showDeleteButton = false
-                    verticalOffset = 0
+                if finalTranslation > -30 {
+                    // 아래로 많이 당기면 삭제 모드 해제
+                    exitDeleteMode()
                 } else {
-                    verticalOffset = -250
+                    // 삭제 대기 위치에 고정
+                    dragOffset = -180
                 }
             } else {
-                verticalOffset = 0
+                // 삭제 버튼이 안 보이면 원래 위치로
+                dragOffset = 0
             }
-            isDragging = false
-            onDragStateChanged(false)
-        }
-    }
-    
-    private func handleTap() {
-        if !isDragging && verticalOffset == 0 && !showDeleteButton {
-            onTap()
         }
     }
 }
 
-
+// MARK: - Preview
 #Preview {
     struct PreviewWrapper: View {
         @State private var currentIndex = 0

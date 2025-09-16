@@ -1,39 +1,39 @@
-//
-//  ContentView.swift
-//  Wishing
-//
-//  Created by 조영민 on 8/4/25.
-//
-
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedTab = 1
-    
+    @State private var searchText = ""
+
     var body: some View {
-        TabView(selection: $selectedTab) {
-            MenuTabView()
-                .tabItem {
-                    Image(systemName: "line.3.horizontal")
-                    Text("메뉴")
+        TabView {
+            Tab("메인", systemImage: "person.3.fill") {
+                NavigationStack {
+                    FriendsTabView()
                 }
-                .tag(0)
-            
-            FriendsTabView()
-                .tabItem {
-                    Image(systemName: "person.3.fill")
-                    Text("메인")
+            }
+
+            Tab("캘린더", systemImage: "calendar") {
+                NavigationStack {
+                    MenuTabView()
                 }
-                .tag(1)
-            
-            MyProfileTabView()
-                .tabItem {
-                    Image(systemName: "person.crop.circle")
-                    Text("마이페이지")
+            }
+
+            Tab("마이페이지", systemImage: "person.crop.circle") {
+                NavigationStack {
+                    MyProfileTabView()
                 }
-                .tag(2)
+            }
+
+            // 검색 전용 탭
+            Tab(role: .search) {
+                NavigationStack {
+                    Text("aaa")
+                        .navigationTitle("검색")
+                }
+                // ✅ 검색 탭에만 searchable 적용
+                .searchable(text: $searchText)
+            }
         }
-        .accentColor(Color("MainColor")) // 선택된 탭의 색상
+        .tint(Color("MainColor"))
     }
 }
 

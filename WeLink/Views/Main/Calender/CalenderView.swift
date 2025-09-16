@@ -140,8 +140,7 @@ struct CalendarView: View {
                         hasMemo: hasMemoOnDate
                     ))
                     .frame(width: 40, height: 40)
-                
-                // 테두리 (선택된 경우)
+
                 if isSelected {
                     Circle()
                         .stroke(Color("MainColor"), lineWidth: 2)
@@ -256,7 +255,7 @@ struct CalendarView: View {
     }
 }
 
-// MARK: - MemoSheetView (개선된 버전)
+// MARK: - MemoSheetView
 struct MemoSheetView: View {
     @Binding var isPresented: Bool
     @Binding var selectedDate: Date
@@ -410,7 +409,7 @@ struct MemoSheetView: View {
     }
 }
 
-// MARK: - MenuTabView (개선된 버전)
+// MARK: - MenuTabView
 struct MenuTabView: View {
     @State private var selectedDate: Date? = Date()
     @State private var memoText: String = ""

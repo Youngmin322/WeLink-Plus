@@ -20,11 +20,9 @@ struct FriendsHeaderView: View {
                 titleView
                     .opacity(isSearching ? 0 : 1)
                     .animation(.easeInOut(duration: 0.25), value: isSearching)
-                searchBarView
                     .opacity(isSearching ? 1 : 0)
                     .animation(.easeInOut(duration: 0.25), value: isSearching)
             }
-            searchToggleButton
         }
     }
     
@@ -38,94 +36,94 @@ struct FriendsHeaderView: View {
         }
     }
     
-    private var searchBarView: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.white.opacity(0.8))
-                .font(.system(size: 18, weight: .medium))
-            
-            TextField("", text: $searchText)
-                .foregroundColor(.white)
-                .font(.system(size: 17))
-                .tint(.white)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .submitLabel(.search)
-                .focused($isTextFieldFocused)
-            
-            if !searchText.isEmpty {
-                Button(action: {
-                    searchText = ""
-                    isTextFieldFocused = false // 포커스 해제 추가
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.white.opacity(0.6))
-                        .font(.system(size: 16))
-                }
-            }
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.3),
-                            Color.white.opacity(0.1)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-        .frame(maxWidth: .infinity)
-    }
-    
-    private var searchToggleButton: some View {
-        Button(action: {
-            if isSearching {
-                // 검색 종료: 모든 작업을 동기적으로 처리
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isTextFieldFocused = false
-                    onToggleSearch()
-                }
-            } else {
-                // 검색 시작
-                onToggleSearch()
-                // 검색 모드가 활성화된 후 포커스 설정
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    isTextFieldFocused = true
-                }
-            }
-        }) {
-            ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .environment(\.colorScheme, .dark)
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Circle()
-                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
-                    )
-                
-                Image(systemName: isSearching ? "xmark" : "magnifyingglass")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white)
-                    .rotationEffect(.degrees(isSearching ? 180 : 0))
-                    .scaleEffect(isSearching ? 0.9 : 1.0)
-            }
-            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-        }
-        .contentShape(Circle())
-    }
+//    private var searchBarView: some View {
+//        HStack(spacing: 10) {
+//            Image(systemName: "magnifyingglass")
+//                .foregroundColor(.white.opacity(0.8))
+//                .font(.system(size: 18, weight: .medium))
+//            
+//            TextField("", text: $searchText)
+//                .foregroundColor(.white)
+//                .font(.system(size: 17))
+//                .tint(.white)
+//                .autocorrectionDisabled()
+//                .textInputAutocapitalization(.never)
+//                .submitLabel(.search)
+//                .focused($isTextFieldFocused)
+//            
+//            if !searchText.isEmpty {
+//                Button(action: {
+//                    searchText = ""
+//                    isTextFieldFocused = false // 포커스 해제 추가
+//                }) {
+//                    Image(systemName: "xmark.circle.fill")
+//                        .foregroundColor(.white.opacity(0.6))
+//                        .font(.system(size: 16))
+//                }
+//            }
+//        }
+//        .padding(.horizontal, 18)
+//        .padding(.vertical, 14)
+//        .background(
+//            RoundedRectangle(cornerRadius: 16)
+//                .fill(.ultraThinMaterial)
+//                .environment(\.colorScheme, .dark)
+//        )
+//        .overlay(
+//            RoundedRectangle(cornerRadius: 16)
+//                .strokeBorder(
+//                    LinearGradient(
+//                        colors: [
+//                            Color.white.opacity(0.3),
+//                            Color.white.opacity(0.1)
+//                        ],
+//                        startPoint: .topLeading,
+//                        endPoint: .bottomTrailing
+//                    ),
+//                    lineWidth: 1
+//                )
+//        )
+//        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+//        .frame(maxWidth: .infinity)
+//    }
+//    
+//    private var searchToggleButton: some View {
+//        Button(action: {
+//            if isSearching {
+//                // 검색 종료: 모든 작업을 동기적으로 처리
+//                withAnimation(.easeInOut(duration: 0.25)) {
+//                    isTextFieldFocused = false
+//                    onToggleSearch()
+//                }
+//            } else {
+//                // 검색 시작
+//                onToggleSearch()
+//                // 검색 모드가 활성화된 후 포커스 설정
+//                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+//                    isTextFieldFocused = true
+//                }
+//            }
+//        }) {
+//            ZStack {
+//                Circle()
+//                    .fill(.ultraThinMaterial)
+//                    .environment(\.colorScheme, .dark)
+//                    .frame(width: 40, height: 40)
+//                    .overlay(
+//                        Circle()
+//                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+//                    )
+//                
+//                Image(systemName: isSearching ? "xmark" : "magnifyingglass")
+//                    .font(.system(size: 18, weight: .medium))
+//                    .foregroundColor(.white)
+//                    .rotationEffect(.degrees(isSearching ? 180 : 0))
+//                    .scaleEffect(isSearching ? 0.9 : 1.0)
+//            }
+//            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+//        }
+//        .contentShape(Circle())
+//    }
 }
 
 // MARK: - Empty State View
@@ -152,7 +150,7 @@ struct FriendsEmptyStateView: View {
     }
 }
 
-// MARK: - Background Image View (최적화됨)
+// MARK: - Background Image View
 struct BackgroundImageView: View {
     let cards: [CardModel]
     let currentIndex: Int
@@ -200,6 +198,7 @@ struct BackgroundImageView: View {
             .onChange(of: currentIndex) { _, _ in
                 handleIndexChange()
             }
+            .allowsHitTesting(false)
     }
     
     private func handleIndexChange() {
@@ -213,3 +212,4 @@ struct BackgroundImageView: View {
         }
     }
 }
+
