@@ -23,13 +23,10 @@ struct ContentView: View {
                 }
             }
 
-            // 검색 전용 탭
             Tab(role: .search) {
                 NavigationStack {
-                    Text("aaa")
-                        .navigationTitle("검색")
+                    FriendsTabView()
                 }
-                // ✅ 검색 탭에만 searchable 적용
                 .searchable(text: $searchText)
             }
         }

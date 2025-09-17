@@ -1,5 +1,5 @@
 //
-//  CardScrollView.swift (제스처 충돌 해결)
+//  CardScrollView.swift
 //  WeLink
 //
 
@@ -8,14 +8,12 @@ import SwiftUI
 struct CardScrollView: View {
     let cards: [CardModel]
     @Binding var currentIndex: Int
-    @State private var scrollPosition: UUID? = nil
+    @StateObject private var viewModel = CardScrollViewModel()
     
     @Environment(\.modelContext) private var modelContext
-    @State private var showingDeleteAlert = false
-    @State private var cardToDelete: CardModel? = nil
     
     private var safeCurrentIndex: Int {
-        cards.safeIndex(currentIndex)
+        cards.safeIndex(viewModel.currentIndex)
     }
     
     var body: some View {
@@ -51,8 +49,7 @@ struct CardScrollView: View {
                                     updateIndex(to: index)
                                 },
                                 onDelete: {
-                                    cardToDelete = card
-                                    showingDeleteAlert = true
+                                    viewModel.requestDelete(card)
                                 }
                             )
                             .frame(width: cardWidth, height: cardHeight)
@@ -64,16 +61,11 @@ struct CardScrollView: View {
                 }
                 .scrollIndicators(.hidden)
                 .scrollTargetBehavior(.viewAligned)
-                .scrollPosition(id: $scrollPosition)
+                .scrollPosition(id: $viewModel.scrollPosition)
                 .clipShape(Rectangle())
                 .clipped(antialiased: false)
-                .onChange(of: scrollPosition) { _, newPosition in
-                    if let newPosition = newPosition,
-                       let index = cards.firstIndex(where: { $0.id == newPosition }) {
-                        DispatchQueue.main.async {
-                            currentIndex = index
-                        }
-                    }
+                .onChange(of: viewModel.scrollPosition) { _, newPosition in
+                    viewModel.handleScrollPositionChange(newPosition, cards: cards)
                 }
             }
             .frame(height: 600)
@@ -97,26 +89,27 @@ struct CardScrollView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            initializeScrollPosition()
+            viewModel.currentIndex = currentIndex
+            viewModel.initialize(with: cards)
         }
         .onChange(of: cards) { _, newCards in
-            handleCardsChange(newCards)
+            viewModel.handleCardsChange(newCards)
         }
         .onChange(of: currentIndex) { _, newIndex in
-            handleIndexChange(newIndex)
+            viewModel.handleIndexChange(newIndex, cards: cards)
         }
-        .alert("카드 삭제", isPresented: $showingDeleteAlert) {
+        .onChange(of: viewModel.currentIndex) { _, newValue in
+            currentIndex = newValue
+        }
+        .alert("카드 삭제", isPresented: $viewModel.showingDeleteAlert) {
             Button("취소", role: .cancel) {
-                cardToDelete = nil
+                viewModel.cancelDelete()
             }
             Button("삭제", role: .destructive) {
-                if let cardToDelete = cardToDelete {
-                    deleteCard(cardToDelete)
-                }
-                self.cardToDelete = nil
+                viewModel.confirmDelete(using: modelContext)
             }
         } message: {
-            if let cardToDelete = cardToDelete {
+            if let cardToDelete = viewModel.cardToDelete {
                 Text("\(cardToDelete.name)님의 카드를 삭제하시겠습니까?")
             }
         }
@@ -124,106 +117,52 @@ struct CardScrollView: View {
     
     // MARK: - Private Methods
     private func updateIndex(to newIndex: Int) {
-        guard newIndex >= 0 && newIndex < cards.count else { return }
-        
-        withAnimation(AnimationConstants.cardTransition) {
-            currentIndex = newIndex
-            scrollPosition = cards[newIndex].id
-        }
-    }
-    
-    private func initializeScrollPosition() {
-        if !cards.isEmpty {
-            if currentIndex >= cards.count {
-                DispatchQueue.main.async {
-                    currentIndex = 0
-                    scrollPosition = cards[0].id
-                }
-            } else {
-                scrollPosition = cards[safeCurrentIndex].id
-            }
-        }
-    }
-    
-    private func handleCardsChange(_ newCards: [CardModel]) {
-        DispatchQueue.main.async {
-            if newCards.isEmpty {
-                currentIndex = 0
-                scrollPosition = nil
-            } else {
-                let newIndex = min(currentIndex, newCards.count - 1)
-                currentIndex = newIndex
-                scrollPosition = newCards[newIndex].id
-            }
-        }
-    }
-    
-    private func handleIndexChange(_ newIndex: Int) {
-        if !cards.isEmpty && newIndex >= 0 && newIndex < cards.count {
-            withAnimation(AnimationConstants.cardTransition) {
-                scrollPosition = cards[newIndex].id
-            }
-        }
+        viewModel.updateIndex(to: newIndex, cards: cards)
     }
     
     private func deleteCard(_ card: CardModel) {
-        withAnimation(AnimationConstants.cardTransition) {
-            if let deleteIndex = cards.firstIndex(where: { $0.id == card.id }) {
-                modelContext.delete(card)
-                
-                if deleteIndex <= currentIndex && currentIndex > 0 {
-                    currentIndex = currentIndex - 1
-                }
-                
-                if cards.count <= 1 {
-                    currentIndex = 0
-                }
-            }
-        }
+        viewModel.confirmDelete(using: modelContext)
     }
 }
 
-// MARK: - CardView (Long Press + Drag 방식)
+// MARK: - CardView
 struct CardView: View {
     let card: CardModel
     let isSelected: Bool
     let onTap: () -> Void
     let onDelete: () -> Void
     
-    @State private var dragOffset: CGFloat = 0
-    @State private var showDeleteButton = false
-    @State private var isInDeleteMode = false
-    @State private var longPressActivated = false
-    
-    private let showDeleteThreshold: CGFloat = -60
-    private let maxDragUp: CGFloat = -300
-    private let maxDragDown: CGFloat = 50
+    @StateObject private var vm = CardItemViewModel()
     
     var body: some View {
         ZStack {
-            if showDeleteButton {
+            if vm.showDeleteButton {
                 deleteButtonView
             }
             
             cardContent
         }
-        .onTapGesture {
-            if !isInDeleteMode {
-                onTap()
-            }
-        }
-        .onLongPressGesture(minimumDuration: 0.5) {
-            // 롱 프레스 시 삭제 모드 활성화
-            activateDeleteMode()
-        }
-        .gesture(
-            // 삭제 모드일 때만 드래그 제스처 활성화
-            isInDeleteMode ?
+        .highPriorityGesture(
+            LongPressGesture(minimumDuration: 0.5)
+                .onEnded { _ in
+                    vm.activateDeleteMode()
+                }
+        )
+        .simultaneousGesture(
+            vm.isInDeleteMode ?
             DragGesture(coordinateSpace: .local)
-                .onChanged(handleDragChanged)
-                .onEnded(handleDragEnded)
+                .onChanged(vm.handleDragChanged)
+                .onEnded(vm.handleDragEnded)
             : nil
         )
+        .onTapGesture {
+            if !vm.isInDeleteMode {
+                onTap()
+            } else {
+                // 삭제 모드에서의 탭은 모드 해제
+                vm.exitDeleteMode()
+            }
+        }
     }
     
     private var deleteButtonView: some View {
@@ -247,7 +186,7 @@ struct CardView: View {
             }
             
             Button("취소") {
-                exitDeleteMode()
+                vm.exitDeleteMode()
             }
             .font(.system(size: 16, weight: .medium))
             .foregroundColor(.white)
@@ -257,9 +196,9 @@ struct CardView: View {
             .environment(\.colorScheme, .dark)
         }
         .offset(y: 120)
-        .scaleEffect(showDeleteButton ? 1.0 : 0.0)
-        .opacity(showDeleteButton ? 1.0 : 0.0)
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showDeleteButton)
+        .scaleEffect(vm.showDeleteButton ? 1.0 : 0.0)
+        .opacity(vm.showDeleteButton ? 1.0 : 0.0)
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: vm.showDeleteButton)
     }
     
     private var cardContent: some View {
@@ -272,81 +211,15 @@ struct CardView: View {
                 x: 0,
                 y: isSelected ? 8 : 4
             )
-            .offset(y: dragOffset)
-            .scaleEffect(isInDeleteMode ? 0.95 : 1.0)
+            .offset(y: vm.dragOffset)
+            .scaleEffect(vm.isInDeleteMode ? 0.95 : 1.0)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color.red.opacity(0.6), lineWidth: isInDeleteMode ? 2 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: isInDeleteMode)
+                    .strokeBorder(Color.red.opacity(0.6), lineWidth: vm.isInDeleteMode ? 2 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: vm.isInDeleteMode)
             )
             .animation(.easeInOut(duration: 0.2), value: isSelected)
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isInDeleteMode)
-    }
-    
-    // MARK: - 삭제 모드 관리
-    private func activateDeleteMode() {
-        guard !isInDeleteMode else { return }
-        
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            isInDeleteMode = true
-            longPressActivated = true
-            // 진동 피드백
-            let impact = UIImpactFeedbackGenerator(style: .medium)
-            impact.impactOccurred()
-        }
-        
-        // 3초 후 자동으로 삭제 모드 해제
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            if isInDeleteMode && !showDeleteButton {
-                exitDeleteMode()
-            }
-        }
-    }
-    
-    private func exitDeleteMode() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            isInDeleteMode = false
-            showDeleteButton = false
-            dragOffset = 0
-            longPressActivated = false
-        }
-    }
-    
-    // MARK: - 드래그 제스처 (삭제 모드에서만 활성화)
-    private func handleDragChanged(_ value: DragGesture.Value) {
-        guard isInDeleteMode else { return }
-        
-        let translation = value.translation.height
-        let newOffset = min(max(translation, maxDragUp), maxDragDown)
-        dragOffset = newOffset
-        
-        let shouldShowDelete = translation < showDeleteThreshold
-        if shouldShowDelete != showDeleteButton {
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-                showDeleteButton = shouldShowDelete
-            }
-        }
-    }
-    
-    private func handleDragEnded(_ value: DragGesture.Value) {
-        guard isInDeleteMode else { return }
-        
-        let finalTranslation = value.translation.height
-        
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            if showDeleteButton {
-                if finalTranslation > -30 {
-                    // 아래로 많이 당기면 삭제 모드 해제
-                    exitDeleteMode()
-                } else {
-                    // 삭제 대기 위치에 고정
-                    dragOffset = -180
-                }
-            } else {
-                // 삭제 버튼이 안 보이면 원래 위치로
-                dragOffset = 0
-            }
-        }
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: vm.isInDeleteMode)
     }
 }
 

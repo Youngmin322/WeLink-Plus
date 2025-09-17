@@ -30,7 +30,6 @@ struct MyProfileTabDetailView: View {
                         }
                     }
                     
-                    // 대주제 버튼
                     CustomTabView(
                         topics: myProfile.topics,
                         currentTopic: $viewModel.currentTopic
@@ -110,7 +109,7 @@ struct backgroundImage: View {
         ZStack {
             Image(uiImage: image)
                 .resizable()
-                .scaledToFit()
+                .scaledToFill()
                 .overlay( VStack {
                     Spacer()
                     
@@ -251,7 +250,6 @@ struct newMainTopicButton: View {
                     .foregroundColor(.white)
                     .font(.system(size: 17, weight: .bold))
                 
-                // 인디케이터
                 Rectangle()
                     .fill(topic.isSelected ? Color("MainColor") : Color.gray.opacity(0.3))
                     .frame(height: 2)

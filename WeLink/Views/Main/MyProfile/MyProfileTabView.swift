@@ -51,8 +51,9 @@ extension MyProfileTabView {
             if let myProfile = viewModel.myProfile {
                 Image(uiImage: UIImage(data: myProfile.imageData)!)
                     .resizable()
+                    .scaledToFill()
                     .blur(radius: 3)
-                    .frame(width: 600, height: 1000)
+                    .frame(width: 500, height: 900)
                     .ignoresSafeArea()
             }
         }

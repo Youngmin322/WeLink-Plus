@@ -110,7 +110,8 @@ extension CategoryDetailedView {
     
     private var topicButtonsView: some View {
         HStack(spacing: 10) {
-            ForEach(Array(selectedTopics.enumerated()), id: \.element.id) { index, topic in
+            ForEach(0..<viewModel.topicsCount, id: \.self) { index in
+                let topic = viewModel.topic(at: index)
                 CategoryDetailButton(
                     topic: topic,
                     selectedTopics: selectedTopics,
@@ -124,22 +125,22 @@ extension CategoryDetailedView {
     
     private var subTopicsView: some View {
         ZStack {
-            let subTopicDict: [String: subTopic] = selectedTopics[viewModel.currentIndex].children
             let sectionWidth: CGFloat = 375.0
+            let subTopics = viewModel.subTopics(for: viewModel.currentIndex)
             
             RoundedRectangle(cornerRadius: 20)
                 .fill(Color("CategoryColor"))
                 .frame(width: sectionWidth, height: viewModel.sectionTotalHeights[viewModel.currentIndex])
             
             VStack(spacing: 0) {
-                ForEach(Array(subTopicDict.values.sorted{ $0.title < $1.title }.enumerated()), id: \.1.title) { index, subTopic in
+                ForEach(Array(subTopics.enumerated()), id: \.1.title) { index, subTopic in
                     SectionView(
                         subTopic: subTopic,
                         width: sectionWidth,
                         viewModel: viewModel,
                         sectionIndex: viewModel.currentIndex
                     )
-                    if index < subTopicDict.count - 1 {
+                    if index < subTopics.count - 1 {
                         Divider().background(Color.gray)
                             .padding(.vertical, 0)
                     }
@@ -300,6 +301,12 @@ class CategoryDetailedViewModel: ObservableObject {
     
     private let selectedTopics: [mainTopic]
     
+    var topicsCount: Int { selectedTopics.count }
+    func topic(at index: Int) -> mainTopic { selectedTopics[index] }
+    func subTopics(for index: Int) -> [subTopic] {
+        Array(selectedTopics[index].children.values).sorted { $0.title < $1.title }
+    }
+    
     init(selectedTopics: [mainTopic]) {
         self.selectedTopics = selectedTopics
         // 첫 번째 토픽을 선택된 상태로 설정
@@ -321,17 +328,15 @@ class CategoryDetailedViewModel: ObservableObject {
     
     func switchCurrentIndex(to newIndex: Int) {
         if currentIndex != newIndex {
-            sectionTotalHeights[currentIndex] = 0
+            if currentIndex < selectedTopics.count { selectedTopics[currentIndex].isSelected = false }
+            selectedTopics[newIndex].isSelected = true
+            currentIndex = newIndex
         }
-        
-        selectedTopics[currentIndex].isSelected = false
-        selectedTopics[newIndex].isSelected = true
-        currentIndex = newIndex
     }
     
     func updateSectionHeight(_ height: CGFloat, for index: Int) {
         if index < sectionTotalHeights.count {
-            sectionTotalHeights[index] += height
+            sectionTotalHeights[index] = height
         }
     }
     
@@ -360,3 +365,4 @@ class CategoryDetailedViewModel: ObservableObject {
         }
     }
 }
+
