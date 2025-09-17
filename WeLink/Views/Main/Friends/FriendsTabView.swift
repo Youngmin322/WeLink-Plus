@@ -14,32 +14,13 @@ struct FriendsTabView: View {
     @Query private var myID: [MyUUID]
     
     @StateObject private var viewModel = FriendsViewModel(cardViewModel: nil)
-    @FocusState private var isTextFieldFocused: Bool
     
     private var cards: [CardModel] {
-        if let cardViewModel = viewModel.cardViewModel {
-            return cardViewModel.filterCards(from: allCards, myIDs: myID, searchText: viewModel.searchText)
-        } else {
-            guard let myUUID = myID.last?.id else {
-                if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    return allCards
-                } else {
-                    return allCards.filter { card in
-                        card.name.localizedCaseInsensitiveContains(viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines))
-                    }
-                }
-            }
-            
-            let filteredCards = allCards.filter { $0.id != myUUID }
-            
-            if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return filteredCards
-            } else {
-                return filteredCards.filter { card in
-                    card.name.localizedCaseInsensitiveContains(viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines))
-                }
-            }
+        guard let myUUID = myID.last?.id else {
+            return allCards
         }
+        
+        return allCards.filter { $0.id != myUUID }
     }
     
     private var safeCurrentIndex: Int {
@@ -63,26 +44,13 @@ struct FriendsTabView: View {
                     )
                     
                     VStack(spacing: 0) {
-                        FriendsHeaderView(
-                            searchText: $viewModel.searchText,
-                            isSearching: $viewModel.isSearching,
-                            isTextFieldFocused: $isTextFieldFocused,
-                            onToggleSearch: {
-                                let wasSearching = viewModel.isSearching
-                                
-                                withAnimation(AnimationConstants.cardTransition) {
-                                    viewModel.toggleSearchMode()
-                                }
-                                
-                                if !wasSearching {
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                        isTextFieldFocused = true
-                                    }
-                                } else {
-                                    isTextFieldFocused = false
-                                }
-                            }
-                        )
+                        // 헤더
+                        HStack {
+                            Text("친구")
+                                .font(.custom("Pretendard-Bold", size: 35))
+                                .foregroundColor(.white)
+                            Spacer()
+                        }
                         .padding(.top, geometry.safeAreaInsets.top - 40)
                         .padding(.horizontal, 24)
                         
@@ -91,7 +59,7 @@ struct FriendsTabView: View {
                             .frame(height: 0)
                         
                         if cards.isEmpty {
-                            FriendsEmptyStateView(searchText: viewModel.searchText)
+                            FriendsEmptyStateView(searchText: "")
                                 .frame(maxHeight: .infinity)
                         } else {
                             ScrollView {
@@ -113,14 +81,6 @@ struct FriendsTabView: View {
                 handleViewAppear()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
-            if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                viewModel.handleKeyboardShow(keyboardFrame.height)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            viewModel.handleKeyboardHide()
-        }
         .onChange(of: allCards) { oldValue, newValue in
             if newValue.count < oldValue.count && viewModel.currentIndex >= cards.count && cards.count > 0 {
                 DispatchQueue.main.async {
@@ -134,7 +94,7 @@ struct FriendsTabView: View {
         }
         .onChange(of: allCards.count) { oldCount, newCount in
             if newCount > oldCount {
-                print("새 카드가 추가되었습니다. 이 \(newCount)개")
+                print("새 카드가 추가되었습니다. 총 \(newCount)개")
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     if !self.cards.isEmpty {
@@ -157,9 +117,6 @@ struct FriendsTabView: View {
                 }
                 self.viewModel.preloadImages(for: newValue)
             }
-        }
-        .onChange(of: viewModel.searchText) { _, _ in
-            viewModel.resetCurrentIndex()
         }
         .sheet(isPresented: $viewModel.showingShareSheet) {
             shareSheetView
@@ -195,7 +152,7 @@ extension FriendsTabView {
                     .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
                 .padding(.trailing, 24)
-                .padding(.bottom, viewModel.keyboardHeight > 0 ? 140 : geometry.safeAreaInsets.bottom + 133)
+                .padding(.bottom, geometry.safeAreaInsets.bottom + 133)
             }
         }
     }
