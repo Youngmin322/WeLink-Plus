@@ -14,15 +14,23 @@ struct FriendsTabView: View {
     @Query private var myID: [MyUUID]
     
     @StateObject private var viewModel = FriendsViewModel(cardViewModel: nil)
+    var searchText: String
     
     private var cards: [CardModel] {
         guard let myUUID = myID.last?.id else {
-            return allCards
+            return filteredCards
         }
-        
-        return allCards.filter { $0.id != myUUID }
+        return filteredCards.filter { $0.id != myUUID }
     }
     
+    private var filteredCards: [CardModel] {
+        if searchText.isEmpty {
+            return allCards
+        } else {
+            return allCards.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
+
     private var safeCurrentIndex: Int {
         cards.safeIndex(viewModel.currentIndex)
     }
@@ -212,7 +220,7 @@ extension FriendsTabView {
     }
 }
 
-#Preview {
-    FriendsTabView()
-        .modelContainer(for: CardModel.self, inMemory: true)
-}
+//#Preview {
+//    FriendsTabView()
+//        .modelContainer(for: CardModel.self, inMemory: true)
+//}

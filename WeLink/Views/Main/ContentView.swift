@@ -7,7 +7,7 @@ struct ContentView: View {
         TabView {
             Tab("메인", systemImage: "person.3.fill") {
                 NavigationStack {
-                    FriendsTabView()
+                    FriendsTabView(searchText: searchText)
                 }
             }
 
@@ -25,9 +25,9 @@ struct ContentView: View {
 
             Tab(role: .search) {
                 NavigationStack {
-                    FriendsTabView()
+                    FriendsTabView(searchText: searchText)
                 }
-                .searchable(text: $searchText)
+                .searchable(text: $searchText, prompt: "이름으로 검색")
             }
         }
         .tint(Color("MainColor"))
