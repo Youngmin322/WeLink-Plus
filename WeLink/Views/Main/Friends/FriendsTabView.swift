@@ -30,7 +30,7 @@ struct FriendsTabView: View {
             return allCards.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
     }
-
+    
     private var safeCurrentIndex: Int {
         cards.safeIndex(viewModel.currentIndex)
     }
@@ -195,22 +195,7 @@ extension FriendsTabView {
 
 // MARK: - Private Methods
 extension FriendsTabView {
-    
-    private func setupViewModel() {
-        if viewModel.cardViewModel == nil {
-            viewModel.cardViewModel = CardViewModel(context: modelContext)
-        }
-    }
-    
-    private func printAllCards(cards: [CardModel]) {
-        for card in cards {
-            print(card.name)
-        }
-    }
-    
     private func handleViewAppear() {
-        setupViewModel()
-        printAllCards(cards: allCards)
         
         if allCards.isEmpty {
             CardDataService.insertDummyCards(into: modelContext)
@@ -219,8 +204,3 @@ extension FriendsTabView {
         }
     }
 }
-
-//#Preview {
-//    FriendsTabView()
-//        .modelContainer(for: CardModel.self, inMemory: true)
-//}
