@@ -131,6 +131,9 @@ class MyProfileViewModel: ObservableObject {
               let dDay = cardViewModel.calculateDaysUntilBirthday(from: birthDate),
               let imageData = selectedImage?.pngData() else { return nil }
         
+//        print("Creating card with ID: \(myID.id)")
+//        print("Card ID matches: \(newCard.id == myID.id)")
+        
         return CardModel(
             id: myID.id,
             name: name,

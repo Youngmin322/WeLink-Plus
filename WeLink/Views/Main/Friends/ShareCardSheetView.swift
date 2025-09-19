@@ -24,8 +24,19 @@ struct ShareCardSheetView: View {
     let myCard: CardModel
     
     private var actualMyCard: CardModel? {
-        guard let myUUID = myID.last?.id else { return nil }
-        return allCards.first { $0.id == myUUID }
+        print("MyUUID count: \(myID.count)")
+        print("All cards count: \(allCards.count)")
+        
+        guard let myUUID = myID.last?.id else {
+            print("MyUUID not found")
+            return nil
+        }
+        
+        print("Looking for card with ID: \(myUUID)")
+        let foundCard = allCards.first { $0.id == myUUID }
+        print("Found card: \(foundCard?.name ?? "nil")")
+        
+        return foundCard
     }
     
     private var currentScreenState: ScreenState {

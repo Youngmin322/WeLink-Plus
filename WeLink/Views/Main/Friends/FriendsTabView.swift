@@ -167,8 +167,13 @@ extension FriendsTabView {
     
     private var shareSheetView: some View {
         NavigationView {
-            if let myCard = viewModel.findMyCard(from: allCards, myIDs: myID) {
-                ShareCardSheetView(myCard: myCard)
+            let myCard: CardModel? = {
+                guard let myUUID = myID.last?.id else { return nil }
+                return allCards.first { $0.id == myUUID }
+            }()
+            
+            if let foundCard = myCard {
+                ShareCardSheetView(myCard: foundCard)
                     .navigationBarTitleDisplayMode(.inline)
             } else {
                 VStack {
