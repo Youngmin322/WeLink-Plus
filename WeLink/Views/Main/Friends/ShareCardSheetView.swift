@@ -87,15 +87,8 @@ struct ShareCardSheetView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .presentationBackground(.ultraThinMaterial)
-        .presentationBackgroundInteraction(.enabled(upThrough: .height(200)))
-        .presentationCornerRadius(20)
-        .background {
-            RoundedRectangle(cornerRadius: 40, style: .continuous)
-                .fill(.black.opacity(0.4))
-                .blur(radius: 20)
-                .ignoresSafeArea()
-        }
+        .navigationTitle("카드 공유")
+          .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             print("ShareCardSheetView appeared")
             setupMultipeerManager()
