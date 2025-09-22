@@ -436,6 +436,11 @@ struct MenuTabView: View {
         }
     }
     
+    private var hasContentForSelectedDate: Bool {
+        guard let selectedDate = selectedDate else { return false }
+        return !birthdayCardsForSelectedDate.isEmpty || !(memoStore.memos[selectedDate]?.isEmpty ?? true)
+    }
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -498,121 +503,20 @@ struct MenuTabView: View {
                     )
                     .padding(.horizontal, 16)
                     
-                    // 하단 정보
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            if let date = selectedDate {
-                                if !birthdayCardsForSelectedDate.isEmpty || !(memoStore.memos[date]?.isEmpty ?? true) {
-                                    // 생일 정보
-                                    if !birthdayCardsForSelectedDate.isEmpty {
-                                        VStack(alignment: .leading, spacing: 12) {
-                                            HStack {
-                                                Image(systemName: "gift.fill")
-                                                    .foregroundColor(Color("MainColor"))
-                                                Text("오늘 생일인 친구")
-                                                    .font(.headline)
-                                                    .fontWeight(.bold)
-                                                    .foregroundColor(.white)
-                                            }
-                                            
-                                            ForEach(birthdayCardsForSelectedDate, id: \.id) { card in
-                                                HStack {
-                                                    Circle()
-                                                        .fill(Color("MainColor"))
-                                                        .frame(width: 8, height: 8)
-                                                    
-                                                    Text(card.name)
-                                                        .fontWeight(.medium)
-                                                        .foregroundColor(.white)
-                                                    
-                                                    Spacer()
-                                                    
-                                                    Text(card.birthDate)
-                                                        .font(.caption)
-                                                        .foregroundColor(.white.opacity(0.7))
-                                                }
-                                                .padding(.horizontal, 16)
-                                                .padding(.vertical, 12)
-                                                .background(Color.white.opacity(0.1))
-                                                .cornerRadius(12)
-                                            }
-                                        }
-                                    }
-                                    
-                                    // 메모 정보
-                                    if let memoList = memoStore.memos[date], !memoList.isEmpty {
-                                        VStack(alignment: .leading, spacing: 12) {
-                                            HStack {
-                                                Image(systemName: "note.text")
-                                                    .foregroundColor(.blue)
-                                                Text("공유 메모")
-                                                    .font(.headline)
-                                                    .fontWeight(.bold)
-                                                    .foregroundColor(.white)
-                                            }
-                                            
-                                            ForEach(Array(memoList.enumerated()), id: \.offset) { _, memo in
-                                                VStack(alignment: .leading, spacing: 8) {
-                                                    Text(memo.text)
-                                                        .foregroundColor(.white)
-                                                        .lineLimit(nil)
-                                                    
-                                                    Text("- \(memo.writer)")
-                                                        .font(.caption)
-                                                        .foregroundColor(.blue.opacity(0.8))
-                                                        .frame(maxWidth: .infinity, alignment: .trailing)
-                                                }
-                                                .padding(16)
-                                                .background(Color.white.opacity(0.1))
-                                                .cornerRadius(12)
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    // 빈 상태
-                                    VStack(spacing: 16) {
-                                        Image(systemName: "calendar.badge.plus")
-                                            .font(.system(size: 48))
-                                            .foregroundColor(.white.opacity(0.6))
-                                        
-                                        Text("선택한 날짜에\n일정이 없습니다")
-                                            .multilineTextAlignment(.center)
-                                            .foregroundColor(.white.opacity(0.8))
-                                            .font(.headline)
-                                        
-                                        Button {
-                                            memoText = ""
-                                            selectedWriter = "Karina"
-                                            isMemoSheetPresented = true
-                                        } label: {
-                                            Text("메모 추가하기")
-                                                .font(.subheadline)
-                                                .fontWeight(.medium)
-                                                .foregroundColor(Color("MainColor"))
-                                                .padding(.horizontal, 20)
-                                                .padding(.vertical, 10)
-                                                .background(Color.white.opacity(0.1))
-                                                .cornerRadius(20)
-                                        }
-                                    }
-                                    .padding(.top, 20)
-                                }
-                            } else {
-                                VStack(spacing: 16) {
-                                    Image(systemName: "calendar")
-                                        .font(.system(size: 48))
-                                        .foregroundColor(.white.opacity(0.6))
-                                    
-                                    Text("날짜를 선택해주세요")
-                                        .foregroundColor(.white.opacity(0.8))
-                                        .font(.headline)
-                                }
-                                .padding(.top, 20)
-                            }
+                    // 하단 정보 - 조건부 스크롤뷰
+                    if hasContentForSelectedDate {
+                        // 컨텐츠가 있을 때만 스크롤뷰 사용
+                        ScrollView {
+                            contentView
+                                .padding(.horizontal, 20)
                         }
-                        .padding(.horizontal, 20)
+                        .frame(maxHeight: 280)
+                    } else {
+                        // 빈 상태일 때는 일반 VStack 사용
+                        contentView
+                            .padding(.horizontal, 20)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .frame(maxHeight: 280)
                 }
                 .sheet(isPresented: $isMemoSheetPresented) {
                     if let date = selectedDate {
@@ -638,6 +542,128 @@ struct MenuTabView: View {
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
+    }
+    
+    // 컨텐츠 뷰를 별도 프로퍼티로 분리
+    @ViewBuilder
+    private var contentView: some View {
+        VStack(spacing: 20) {
+            if let date = selectedDate {
+                if hasContentForSelectedDate {
+                    // 생일 정보
+                    if !birthdayCardsForSelectedDate.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "gift.fill")
+                                    .foregroundColor(Color("MainColor"))
+                                Text("오늘 생일인 친구")
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                            }
+                            
+                            ForEach(birthdayCardsForSelectedDate, id: \.id) { card in
+                                HStack {
+                                    Circle()
+                                        .fill(Color("MainColor"))
+                                        .frame(width: 8, height: 8)
+                                    
+                                    Text(card.name)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    
+                                    Spacer()
+                                    
+                                    Text(card.birthDate)
+                                        .font(.caption)
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(12)
+                            }
+                        }
+                    }
+                    
+                    // 메모 정보
+                    if let memoList = memoStore.memos[date], !memoList.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "note.text")
+                                    .foregroundColor(.blue)
+                                Text("공유 메모")
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                            }
+                            
+                            ForEach(Array(memoList.enumerated()), id: \.offset) { _, memo in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(memo.text)
+                                        .foregroundColor(.white)
+                                        .lineLimit(nil)
+                                    
+                                    Text("- \(memo.writer)")
+                                        .font(.caption)
+                                        .foregroundColor(.blue.opacity(0.8))
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                }
+                                .padding(16)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(12)
+                            }
+                        }
+                    }
+                } else {
+                    // 빈 상태 - 중앙 정렬
+                    Spacer()
+                    
+                    VStack(spacing: 16) {
+                        Image(systemName: "calendar.badge.plus")
+                            .font(.system(size: 48))
+                            .foregroundColor(.white.opacity(0.6))
+                        
+                        Text("선택한 날짜에 일정이 없습니다.")
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.white.opacity(0.8))
+                            .font(.headline)
+                        
+                        Button {
+                            memoText = ""
+                            selectedWriter = "Karina"
+                            isMemoSheetPresented = true
+                        } label: {
+                            Text("메모 추가하기")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(Color("MainColor"))
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(20)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+            } else {
+                // 날짜 미선택 상태 - 중앙 정렬
+                Spacer()
+                
+                VStack(spacing: 16) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 48))
+                        .foregroundColor(.white.opacity(0.6))
+                    
+                    Text("날짜를 선택해주세요")
+                        .foregroundColor(.white.opacity(0.8))
+                        .font(.headline)
+                }
+                
+                Spacer()
+            }
+        }
     }
 }
 
