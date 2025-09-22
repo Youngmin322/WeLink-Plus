@@ -17,19 +17,17 @@ class CalendarSegmentViewModel: ObservableObject {
     // MARK: - Private Properties
     private let calendar = Calendar.current
     private let startYear = 2025
-    private let endYear = 2034 // 10년간
+    private let endYear = 2034
     private var modelContext: ModelContext
     
     // MARK: - Computed Properties
     
-    /// 날짜 포맷터들
     var monthYearFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy년 MM월"
         return formatter
     }
     
-    /// 한국식 월요일 시작 요일
     var weekdays: [String] {
         return [
             "월",
@@ -42,7 +40,6 @@ class CalendarSegmentViewModel: ObservableObject {
         ]
     }
     
-    /// 현재 월의 날짜 배열
     var daysInMonth: [Date] {
         guard let monthInterval = calendar.dateInterval(
             of: .month,
@@ -54,12 +51,10 @@ class CalendarSegmentViewModel: ObservableObject {
         let firstOfMonth = monthInterval.start
         let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
         
-        // 월요일 시작으로 조정 (일요일=1, 월요일=2 -> 월요일=0, 일요일=6)
         let adjustedFirstWeekday = (firstWeekday + 5) % 7
         
         var days: [Date] = []
         
-        // 이전 달 날짜들로 첫 주 채우기
         if adjustedFirstWeekday > 0 {
             for dayOffset in (1...adjustedFirstWeekday).reversed() {
                 if let previousDate = calendar.date(
@@ -72,7 +67,6 @@ class CalendarSegmentViewModel: ObservableObject {
             }
         }
         
-        // 해당 월의 모든 날짜 추가
         let numberOfDays = calendar.range(
             of: .day,
             in: .month,
@@ -89,7 +83,6 @@ class CalendarSegmentViewModel: ObservableObject {
             }
         }
         
-        // 다음 달 날짜들로 마지막 주 채우기 (7의 배수로 맞추기)
         let remainingCells = 7 - (days.count % 7)
         if remainingCells < 7 {
             let lastDayOfMonth = calendar.date(
@@ -120,8 +113,6 @@ class CalendarSegmentViewModel: ObservableObject {
     }
     
     // MARK: - Public Methods
-    
-    /// 다음 월로 이동
     func nextMonthWasTapped() {
         guard canNavigateMonth(1) else { return }
         
@@ -136,7 +127,6 @@ class CalendarSegmentViewModel: ObservableObject {
         }
     }
     
-    /// 이전 월로 이동
     func previousMonthWasTapped() {
         guard canNavigateMonth(-1) else { return }
         
@@ -175,34 +165,27 @@ class CalendarSegmentViewModel: ObservableObject {
                 }
             }
             
-            // 선택된 날짜 업데이트
             self.selectedDate = date
         }
     }
     
-    
-    /// 날짜 셀의 텍스트 색상 결정
     func cellTextColor(
         for date: Date,
         isSelected: Bool,
         isToday: Bool,
         isCurrentMonth: Bool
     ) -> Color {
-        // 선택된 날짜는 흰색
         if isSelected {
             return .white
         }
         
-        // 현재 월이 아닌 날짜는 회색 투명
         if !isCurrentMonth {
             return Color(hex: "#919191").opacity(0.3)
         }
         
-        // 기본 색상은 회색
         return Color(hex: "#919191")
     }
     
-    /// 날짜 셀의 배경 색상 결정
     func cellBackgroundColor(
         isSelected: Bool,
         isToday: Bool
@@ -269,17 +252,4 @@ class CalendarSegmentViewModel: ObservableObject {
         components.day = day
         return calendar.date(from: components)
     }
-    
-    /// 특정 날짜의 이벤트 목록 가져오기 (실제 Chaap 데이터 사용)
-//    private func chaapsForDate(_ date: Date) -> [Chaap] {
-//        // Calendar의 startOfDay와 endOfDay를 구하여 해당 날짜의 Chaap들을 필터링
-//        let startOfDay = calendar.startOfDay(for: date)
-//        guard let endOfDay = calendar.date(
-//            byAdding: .day,
-//            value: 1,
-//            to: startOfDay
-//        ) else {
-//            return []
-//        }
-//    }
 }
