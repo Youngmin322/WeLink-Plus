@@ -19,10 +19,12 @@ struct MyProfileTabDetailView: View {
     
     var body: some View {
         ZStack(alignment: .top) {
+            Color(hex: 0x000000)
+                .ignoresSafeArea()
             ScrollView {
                 VStack {
                     ZStack {
-                        backgroundImage(image: UIImage(data: myProfile.imageData)!)
+                        backgroundImage(image: viewModel.profileImage)
                         
                         VStack {
                             Spacer()
@@ -38,7 +40,6 @@ struct MyProfileTabDetailView: View {
                     entireSubTopicView(currentTopic: $viewModel.currentTopic)
                 }
             }
-            .background(Color(hex: 0x000000))
             .navigationBarHidden(true)
             .ignoresSafeArea()
             .onAppear {
@@ -47,13 +48,9 @@ struct MyProfileTabDetailView: View {
             
             upperButtons(
                 dismiss: { dismiss() },
-                showMenu: $viewModel.showMenu
+                myProfile: myProfile
             )
             .padding(.top, -30)
-            
-            if viewModel.showMenu {
-                menuOverlay
-            }
         }
     }
 }
@@ -61,76 +58,55 @@ struct MyProfileTabDetailView: View {
 // MARK: - View Components
 extension MyProfileTabDetailView {
     
-    private var menuOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.001)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    withAnimation {
-                        viewModel.toggleMenu()
-                    }
-                }
-
-            // 메뉴 본체
-            VStack(alignment: .leading, spacing: 0) {
-                NavigationLink(destination: ProfileCustomView(progress: 1.0 / 4.0, cardModel: myProfile, isEdit: true).onAppear { viewModel.toggleMenu() }
-                                        .navigationBarHidden(true)) {
-                    Text("프로필 수정")
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.darkGray))
-                        .foregroundColor(.white)
-                }
-
-                Divider().background(Color.white)
-
-                NavigationLink(destination: CategoryView(progress: 2.0/4.0, cardModel: myProfile, isEdit: true).onAppear { viewModel.toggleMenu() }
-                                        .navigationBarHidden(true)) {
-                    Text("취향 카테고리 수정")
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.darkGray))
-                        .foregroundColor(.white)
-                }
-            }
-            .background(Color(.darkGray))
-            .cornerRadius(12)
-            .frame(width: 160)
-            .shadow(radius: 5)
-            .offset(x: 60, y: 50)
-        }
-    }
 }
 
 // MARK: - Supporting Views
 struct backgroundImage: View {
-    let image: UIImage
+    let image: UIImage?
     var body: some View {
         ZStack {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .overlay( VStack {
-                    Spacer()
-                    
-                    // 어둡게 그라데이션
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color(hex: 0x000000),
-                            Color.clear
-                        ]),
-                        startPoint: .bottom,
-                        endPoint: .top
-                    )
-                    .frame(height: 200)
-                })
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .clipped()
+                    .overlay( VStack {
+                        Spacer()
+                        
+                        // 어둡게 그라데이션
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(hex: 0x000000),
+                                Color.clear
+                            ]),
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
+                        .frame(height: 200)
+                    })
+            } else {
+                Rectangle()
+                    .fill(Color.black)
+                    .overlay( VStack {
+                        Spacer()
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(hex: 0x000000),
+                                Color.clear
+                            ]),
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
+                        .frame(height: 200)
+                    })
+            }
         }
     }
 }
 
 struct upperButtons: View {
     let dismiss: () -> Void
-    @Binding var showMenu: Bool
+    let myProfile: CardModel
     
     var body: some View {
         HStack {
@@ -153,21 +129,23 @@ struct upperButtons: View {
             
             Spacer()
             
-            // 더보기 버튼
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showMenu.toggle()
+            Menu {
+                NavigationLink("프로필 수정") {
+                    ProfileCustomView(progress: 1.0 / 4.0, cardModel: myProfile, isEdit: true)
+                        .navigationBarHidden(true)
                 }
-            }) {
+                NavigationLink("취향 카테고리 수정") {
+                    CategoryView(progress: 2.0/4.0, cardModel: myProfile, isEdit: true)
+                        .navigationBarHidden(true)
+                }
+            } label: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.clear)
                         .frame(width: 44, height: 44)
-                    
-                    Image(systemName: "ellipsis")
+                    Image(systemName: "ellipsis.vertical")
                         .foregroundColor(Color("MainColor"))
                         .font(.system(size: 24, weight: .bold))
-                        .rotationEffect(Angle(degrees: 90))
                 }
             }
             .contentShape(Rectangle())
@@ -216,7 +194,7 @@ struct DetailedInfo: View {
 }
 
 struct CustomTabView: View {
-    @State var topics: [mainTopic]
+    let topics: [mainTopic]
     @Binding var currentTopic: mainTopic?
     
     var body: some View {
@@ -311,7 +289,8 @@ struct subTopicWindow: View {
     
     var body: some View {
         ZStack {
-            if topic.children.values.filter({ $0.isSelected }).count > 0 {
+            let selected = topic.children.values.filter { $0.isSelected }.sorted { $0.title < $1.title }
+            if !selected.isEmpty {
                 VStack(spacing: 22) {
                     HStack(spacing: 1) {
                         Text("#")
@@ -332,7 +311,7 @@ struct subTopicWindow: View {
                     ]
                     
                     LazyVGrid(columns: columns, spacing: 8) {
-                        ForEach(topic.children.values.filter { $0.isSelected }.sorted { $0.title < $1.title }, id: \.id) { detailedTopic in
+                        ForEach(selected, id: \.id) { detailedTopic in
                             detailedTopicButton(topic: detailedTopic, width: buttonWidth, height: buttonHeight)
                         }
                     }
@@ -391,13 +370,14 @@ func findLastKey(sortedKeys: [String], currentTopic: mainTopic) -> String {
 @MainActor
 class MyProfileDetailViewModel: ObservableObject {
     @Published var currentTopic: mainTopic?
-    @Published var showMenu: Bool = false
+    let profileImage: UIImage?
     
     private let myProfile: CardModel
     
     init(myProfile: CardModel) {
         self.myProfile = myProfile
         self.currentTopic = myProfile.topics.first
+        self.profileImage = UIImage(data: myProfile.imageData)
     }
     
     func initializeTopics() {
@@ -408,10 +388,6 @@ class MyProfileDetailViewModel: ObservableObject {
         }
         currentTopic = myProfile.topics[0]
         currentTopic?.isSelected = true
-    }
-    
-    func toggleMenu() {
-        showMenu.toggle()
     }
     
     func switchTopic(to newTopic: mainTopic) {

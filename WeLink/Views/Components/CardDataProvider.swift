@@ -73,7 +73,6 @@ struct CardDataProvider {
         for card in dummyCards {
             context.insert(card)
         }
-        
         do {
             try context.save()
         } catch {
