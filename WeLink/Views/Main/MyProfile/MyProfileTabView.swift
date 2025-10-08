@@ -48,8 +48,8 @@ extension MyProfileTabView {
     
     private var backgroundImageView: some View {
         Group {
-            if let myProfile = viewModel.myProfile {
-                Image(uiImage: UIImage(data: myProfile.imageData)!)
+            if let myProfile = viewModel.myProfile, let uiImage = decodeImage(from: myProfile.imageData) {
+                Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFill()
                     .blur(radius: 3)
@@ -185,25 +185,33 @@ private struct FrontCardView: View {
     
     var body: some View {
         ZStack {
-            Image(uiImage: UIImage(data: myProfile.imageData)!)
-                .resizable()
-                .scaledToFill()
-                .frame(width: 302, height: 500)
-                .clipped()
+            Group {
+                if let uiImage = decodeImage(from: myProfile.imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 302, height: 500)
+                        .clipped()
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 302, height: 500)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color("CategoryColor"), lineWidth: 2)
+            )
+            .overlay(
+                LinearGradient(
+                    gradient: Gradient(colors: [.clear, Color.black.opacity(0.4)]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .blur(radius: 20)
                 .clipShape(RoundedRectangle(cornerRadius: 20))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color("CategoryColor"), lineWidth: 2)
-                )
-                .overlay(
-                    LinearGradient(
-                        gradient: Gradient(colors: [.clear, Color.black.opacity(0.4)]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .blur(radius: 20)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                )
+            )
             
             VStack {
                 Text("D-\(myProfile.dDay)")
@@ -234,7 +242,7 @@ private struct FrontCardView: View {
                     .offset(x: -65, y: 140)
                 
                 HStack(spacing: 19) {
-                    ForEach([formattedBirthDate(from: myProfile.birthDate), (myProfile.mbti), myProfile.tag], id: \.self) { label in
+                    ForEach([formatMonthDay(from: myProfile.birthDate), (myProfile.mbti), myProfile.tag], id: \.self) { label in
                         ZStack {
                             RoundedRectangle(cornerRadius: 45)
                                 .foregroundColor(Color.white)
@@ -439,11 +447,4 @@ class MyProfileTabViewModel: ObservableObject {
     private func findMyProfile(cards: [CardModel], id: UUID) -> CardModel? {
         return cards.first { $0.id == id }
     }
-}
-
-// MARK: - Helper Functions
-private func formattedBirthDate(from date: Date) -> String {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "MM.dd"
-    return formatter.string(from: date)
 }

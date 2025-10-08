@@ -130,22 +130,32 @@ struct upperButtons: View {
             Spacer()
             
             Menu {
-                NavigationLink("프로필 수정") {
-                    ProfileCustomView(progress: 1.0 / 4.0, cardModel: myProfile, isEdit: true)
-                        .navigationBarHidden(true)
+                NavigationLink(destination: ProfileCustomView(progress: 1.0 / 4.0, cardModel: myProfile, isEdit: true)
+                    .navigationBarHidden(true)) {
+                    HStack {
+                        Text("프로필 수정")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                    }
                 }
-                NavigationLink("취향 카테고리 수정") {
-                    CategoryView(progress: 2.0/4.0, cardModel: myProfile, isEdit: true)
-                        .navigationBarHidden(true)
+                
+                NavigationLink(destination: CategoryView(progress: 2.0/4.0, cardModel: myProfile, isEdit: true)
+                    .navigationBarHidden(true)) {
+                    HStack {
+                        Text("취향 카테고리 수정")
+                            .foregroundStyle(.primary)
+                        Image(systemName: "pencil")
+                            .foregroundStyle(.blue)
+                    }
                 }
             } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.clear)
-                        .frame(width: 44, height: 44)
-                    Image(systemName: "ellipsis.vertical")
+                HStack(spacing: 4) {
+                    Text("편집")
                         .foregroundColor(Color("MainColor"))
-                        .font(.system(size: 24, weight: .bold))
+                        .font(.title3)
+                        .bold()
+                    Image(systemName: "chevron.down")
+                        .foregroundStyle(Color("MainColor"))
                 }
             }
             .contentShape(Rectangle())
@@ -177,7 +187,7 @@ struct DetailedInfo: View {
             
             // 생일, MBTI, 직업
             HStack(spacing: 19) {
-                ForEach([formattedBirthDate(from: myProfile.birthDate), myProfile.mbti, myProfile.tag], id: \.self) { label in
+                ForEach([formatMonthDay(from: myProfile.birthDate), myProfile.mbti, myProfile.tag], id: \.self) { label in
                     ZStack {
                         RoundedRectangle(cornerRadius: 45)
                             .stroke(Color("StrokeMyDetail"), lineWidth: 1)
@@ -377,7 +387,7 @@ class MyProfileDetailViewModel: ObservableObject {
     init(myProfile: CardModel) {
         self.myProfile = myProfile
         self.currentTopic = myProfile.topics.first
-        self.profileImage = UIImage(data: myProfile.imageData)
+        self.profileImage = decodeImage(from: myProfile.imageData)
     }
     
     func initializeTopics() {
@@ -398,5 +408,5 @@ class MyProfileDetailViewModel: ObservableObject {
 }
 
 #Preview {
-    MyProfileTabDetailView(myProfile: CardModel(id: UUID() , name: "하워드", age: 30, description: "야생의 하워드가 나타났다!", birthDate: "2003-04-24", mbti: "ISTP", tag: "선생님", dDay: 80, imageData: UIImage(named: "Giselle")!.pngData()!))
+    MyProfileTabDetailView(myProfile: CardModel(id: UUID() , name: "하워드", age: 30, description: "야생의 하워드가 나타났다!", birthDate: "2003-04-24", mbti: "ISTP", tag: "선생님", dDay: 80, imageData: (UIImage(named: "Giselle")?.pngData()) ?? Data()))
 }

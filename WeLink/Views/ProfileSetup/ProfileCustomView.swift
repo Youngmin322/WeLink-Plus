@@ -62,7 +62,7 @@ extension ProfileCustomView {
             
             RoundedRectangle(cornerRadius: 4)
                 .fill(Color("MainColor"))
-                .frame(width: barWidth * 0.2, height: barHeight)
+                .frame(width: barWidth * progress, height: barHeight)
         }
         .padding(.bottom, 20)
     }

@@ -2,7 +2,50 @@ import SwiftUI
 import Foundation
 
 struct MyProfileCardOnlyView: View {
+    // Formats a birth date from a String by parsing common formats, falling back to the raw string
+    private func formattedBirthDate(from string: String) -> String {
+        // Try a few common incoming formats first
+        let incomingFormats = [
+            "yyyy-MM-dd",
+            "yyyy.MM.dd",
+            "yyyy/MM/dd",
+            "MM/dd/yyyy",
+            "dd.MM.yyyy"
+        ]
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.calendar = Calendar(identifier: .gregorian)
+
+        for format in incomingFormats {
+            parser.dateFormat = format
+            if let date = parser.date(from: string) {
+                return formattedBirthDate(from: date)
+            }
+        }
+        // If parsing fails, just return the original string
+        return string
+    }
+
+    // Formats a Date into a short string like "1999.12.31"
+    private func formattedBirthDate(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = "yyyy.MM.dd"
+        return formatter.string(from: date)
+    }
+    
     let card: CardModel
+
+    // Build label strings consistently for the chips
+    private var labels: [String] {
+        var result: [String] = []
+        // If birthDate is a String, format/normalize it; if it's already in display form, this will pass it through.
+        result.append(formattedBirthDate(from: card.birthDate))
+        result.append(card.mbti)
+        result.append(card.tag)
+        return result
+    }
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -60,7 +103,7 @@ struct MyProfileCardOnlyView: View {
                 .padding(.leading, -9)
                 
                 HStack(spacing: 15) {
-                    ForEach([formattedBirthDate(from: card.birthDate), card.mbti, card.tag], id: \.self) { label in
+                    ForEach(labels, id: \.self) { label in
                         ZStack {
                             RoundedRectangle(cornerRadius: 45)
                                 .foregroundColor(Color.white)
