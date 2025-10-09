@@ -158,26 +158,21 @@ class FriendsViewModel: ObservableObject {
         }
     }
     
-    // Update preloaded images on main actor
     private func updatePreloadedImages(_ images: [Int: UIImage]) {
         let oldCount = self.preloadedImages.count
         self.preloadedImages = images
         print("🔄 preloadedImages 업데이트: \(oldCount) -> \(images.count)")
     }
     
-    // Made static and async to allow background usage
-    private static func resizeImageForBackground(_ image: UIImage) async -> UIImage {
+    private static func resizeImageForBackground(_ image: UIImage, maxDimension overrideMaxDimension: CGFloat? = nil) async -> UIImage {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
-                let screenSize = UIScreen.main.bounds.size
-                let maxDimension = max(screenSize.width, screenSize.height) * 1.2
-                
                 let imageSize = image.size
-                let scale = maxDimension / max(imageSize.width, imageSize.height)
-                
+                let maxDimension = overrideMaxDimension ?? 2000
+                let scale = min(1.0, maxDimension / max(imageSize.width, imageSize.height))
                 let targetSize = CGSize(
-                    width: imageSize.width * scale,
-                    height: imageSize.height * scale
+                    width: max(1, imageSize.width * scale),
+                    height: max(1, imageSize.height * scale)
                 )
                 
                 let format = UIGraphicsImageRendererFormat()
@@ -226,3 +221,4 @@ class FriendsViewModel: ObservableObject {
         }
     }
 }
+
