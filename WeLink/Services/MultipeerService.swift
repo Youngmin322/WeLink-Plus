@@ -24,6 +24,16 @@ class MultipeerService: NSObject, ObservableObject {
     private var cardsReceivedFrom: Set<String> = []
     private var modelContext: ModelContext?
     
+    private var isInitialized = false
+
+    private func initializeIfNeeded() {
+        guard !isInitialized else { return }
+        setupSession()
+        setupAdvertiser()
+        setupBrowser()
+        isInitialized = true
+    }
+    
     // MARK: - Public Properties
     @Published var receivedCard: CardModel?
     @Published var isConnected: Bool = false
@@ -42,35 +52,58 @@ class MultipeerService: NSObject, ObservableObject {
     
     func setupPeerWithUserName(_ userName: String) {
         let displayName = userName.isEmpty ? UIDevice.current.name : userName
-        myPeerID = MCPeerID(displayName: displayName)
-        setupSession()
-        setupAdvertiser()
-        setupBrowser()
-        print("피어 ID 설정 완료: \(displayName)")
+
+        // If myPeerID is not set yet, assign and initialize components
+        if myPeerID == nil {
+            myPeerID = MCPeerID(displayName: displayName)
+            initializeIfNeeded()
+            print("피어 ID 설정 완료: \(displayName)")
+            return
+        }
+
+        // If already initialized but display name changed, tear down and reinitialize
+        if myPeerID.displayName != displayName {
+            // Stop current networking components safely
+            advertiser?.stopAdvertisingPeer()
+            browser?.stopBrowsingForPeers()
+            session?.disconnect()
+
+            // Recreate peer ID and re-setup components
+            myPeerID = MCPeerID(displayName: displayName)
+            setupSession()
+            setupAdvertiser()
+            setupBrowser()
+            isInitialized = true
+            print("피어 ID 재설정 완료: \(displayName)")
+        } else {
+            // No change needed
+            print("피어 ID 변경 없음: \(displayName)")
+        }
     }
     
     override init() {
         super.init()
         myPeerID = MCPeerID(displayName: UIDevice.current.name)
-        setupSession()
-        setupAdvertiser()
-        setupBrowser()
+        initializeIfNeeded()
     }
     
     // MARK: - Private Setup Methods
     private func setupSession() {
+        guard myPeerID != nil else { return }
         session = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .required)
         session.delegate = self
         print("Session 설정 완료: \(myPeerID.displayName)")
     }
     
     private func setupAdvertiser() {
+        guard myPeerID != nil else { return }
         advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: nil, serviceType: serviceType)
         advertiser.delegate = self
         print("Advertiser 설정 완료")
     }
     
     private func setupBrowser() {
+        guard myPeerID != nil else { return }
         browser = MCNearbyServiceBrowser(peer: myPeerID, serviceType: serviceType)
         browser.delegate = self
         print("Browser 설정 완료")
@@ -78,27 +111,31 @@ class MultipeerService: NSObject, ObservableObject {
     
     // MARK: - Public Methods
     func startHosting() {
+        guard let advertiser = advertiser else { return }
         print("광고 시작: \(myPeerID.displayName)")
         advertiser.startAdvertisingPeer()
     }
     
     func startBrowsing() {
+        guard let browser = browser else { return }
         print("검색 시작")
         browser.startBrowsingForPeers()
     }
     
     func stopHosting() {
+        guard let advertiser = advertiser else { return }
         print("광고 중지")
         advertiser.stopAdvertisingPeer()
     }
     
     func stopBrowsing() {
+        guard let browser = browser else { return }
         print("검색 중지")
         browser.stopBrowsingForPeers()
     }
     
     func disconnect() {
-        session.disconnect()
+        session?.disconnect()
         stopHosting()
         stopBrowsing()
         
@@ -113,6 +150,7 @@ class MultipeerService: NSObject, ObservableObject {
     }
     
     func invitePeer(_ peerID: MCPeerID) {
+        guard let browser = browser else { return }
         print("초대 전송: \(peerID.displayName)")
         browser.invitePeer(peerID, to: session, withContext: nil, timeout: 30)
     }
@@ -167,7 +205,7 @@ class MultipeerService: NSObject, ObservableObject {
         
         stopHosting()
         stopBrowsing()
-        session.disconnect()
+        session?.disconnect()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.setupSession()
